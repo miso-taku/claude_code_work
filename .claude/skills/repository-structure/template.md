@@ -4,22 +4,25 @@
 
 ```
 project-root/
-├── src/                   # ソースコード
-│   ├── [layer1]/          # [説明]
-│   ├── [layer2]/          # [説明]
-│   └── [layer3]/          # [説明]
+├── pyproject.toml         # プロジェクト定義・ツール設定
+├── uv.lock                # 依存関係ロックファイル
+├── src/                   # ソースコード(srcレイアウト)
+│   └── {パッケージ名}/
+│       ├── domain/        # [説明]
+│       ├── application/   # [説明]
+│       ├── infrastructure/# [説明]
+│       └── presentation/  # [説明]
 ├── tests/                 # テストコード
 │   ├── unit/              # ユニットテスト
-│   ├── integration/       # 統合テスト
-│   └── e2e/               # E2Eテスト
+│   └── integration/       # 統合テスト
 ├── docs/                  # プロジェクトドキュメント
-├── config/                # 設定ファイル
-└── scripts/               # ビルド・デプロイスクリプト
+├── config/                # 設定ファイル(該当する場合)
+└── scripts/               # 開発補助スクリプト(該当する場合)
 ```
 
 ## ディレクトリ詳細
 
-### src/ (ソースコードディレクトリ)
+### src/{パッケージ名}/ (ソースコードディレクトリ)
 
 #### [ディレクトリ1]
 
@@ -40,8 +43,8 @@ project-root/
 **例**:
 ```
 [ディレクトリ名]/
-├── [example-file1].ts
-└── [example-file2].ts
+├── [example_file1].py
+└── [example_file2].py
 ```
 
 #### [ディレクトリ2]
@@ -67,35 +70,23 @@ project-root/
 **構造**:
 ```
 tests/unit/
-└── src/                    # srcディレクトリと同じ構造
-    └── [layer]/
-        └── [filename].test.ts
+└── [layer]/                # src/{パッケージ名}/ と同じ構造
+    └── [subdir]/
+        └── test_[filename].py
 ```
 
 **命名規則**:
-- パターン: `[テスト対象ファイル名].test.ts`
-- 例: `TaskService.ts` → `TaskService.test.ts`
+- パターン: `test_[テスト対象ファイル名].py`
+- 例: `src/{パッケージ名}/domain/models/task.py` → `tests/unit/domain/models/test_task.py`
 
 #### integration/
 
-**役割**: 統合テストの配置
+**役割**: 統合テストの配置(複数レイヤー結合のテスト)
 
 **構造**:
 ```
 tests/integration/
-└── [feature]/              # 機能単位でディレクトリ分割
-    └── [scenario].test.ts
-```
-
-#### e2e/
-
-**役割**: E2Eテストの配置
-
-**構造**:
-```
-tests/e2e/
-└── [user-scenario]/        # ユーザーシナリオ単位
-    └── [flow].test.ts
+└── test_[シナリオ].py       # シナリオ単位でファイル分割
 ```
 
 ### docs/ (ドキュメントディレクトリ)
@@ -111,20 +102,22 @@ tests/e2e/
 ### config/ (設定ファイルディレクトリ - 該当する場合)
 
 **配置ファイル**:
-- 設定ファイル
-- 定数定義ファイル
+- アプリケーション固有の設定ファイル
+- 環境別設定ファイル
 
 **例**:
 ```
 config/
-├── default.ts
-└── constants.ts
+├── default.toml
+└── logging.toml
 ```
+
+※ プロジェクト定義・ツール設定はプロジェクトルートの `pyproject.toml` に集約する
 
 ### scripts/ (スクリプトディレクトリ - 該当する場合)
 
 **配置ファイル**:
-- ビルドスクリプト
+- 開発環境セットアップスクリプト
 - 開発補助スクリプト
 
 ## ファイル配置規則
@@ -140,81 +133,85 @@ config/
 
 | テスト種別 | 配置先 | 命名規則 | 例 |
 |-----------|--------|---------|-----|
-| ユニットテスト | tests/unit/ | [対象].test.ts | TaskService.test.ts |
-| 統合テスト | tests/integration/ | [機能].test.ts | task-crud.test.ts |
-| E2Eテスト | tests/e2e/ | [シナリオ].test.ts | user-workflow.test.ts |
+| ユニットテスト | tests/unit/ (実装と対応するパス構造) | test_[対象].py | test_task_service.py |
+| 統合テスト | tests/integration/ | test_[シナリオ].py | test_task_crud.py |
 
 ### 設定ファイル
 
 | ファイル種別 | 配置先 | 命名規則 |
 |------------|--------|---------|
-| 環境設定 | config/environments/ | [環境名].ts |
-| ツール設定 | プロジェクトルート | [ツール名].config.js |
-| 型定義 | src/types/ | [対象].d.ts |
+| プロジェクト定義 | プロジェクトルート | pyproject.toml([project]セクション) |
+| ツール設定 | プロジェクトルート | pyproject.toml([tool.ruff], [tool.pytest.ini_options], [tool.mypy]) |
+| 依存関係ロック | プロジェクトルート | uv.lock(uvが自動生成・手動編集禁止) |
+| 環境設定 | config/ | [環境名].toml |
 
 ## 命名規則
 
 ### ディレクトリ名
 
-- **レイヤーディレクトリ**: 複数形、kebab-case
-  - 例: `services/`, `repositories/`, `controllers/`
-- **機能ディレクトリ**: 単数形、kebab-case
-  - 例: `task-management/`, `user-authentication/`
+- **レイヤーディレクトリ**: DDDの4層構造に従う
+  - 例: `domain/`, `application/`, `infrastructure/`, `presentation/`
+- **レイヤー内の格納ディレクトリ**: 複数形、snake_case
+  - 例: `models/`, `services/`, `repositories/`, `usecases/`
+- **機能ディレクトリ**: snake_case(import可能な名前にする)
+  - 例: `task_management/`, `user_authentication/`
 
 ### ファイル名
 
-- **クラスファイル**: PascalCase
-  - 例: `TaskService.ts`, `UserRepository.ts`
-- **関数ファイル**: camelCase
-  - 例: `formatDate.ts`, `validateEmail.ts`
-- **定数ファイル**: UPPER_SNAKE_CASE
-  - 例: `API_ENDPOINTS.ts`, `ERROR_MESSAGES.ts`
+- **モジュールファイル**: snake_case(クラス名はPascalCase)
+  - 例: `task_service.py`(class TaskService), `user_repository.py`(class UserRepository)
+- **関数モジュール**: snake_case、動詞で始める
+  - 例: `format_date.py`, `validate_email.py`
+- **定数**: モジュールは snake_case、定数名は UPPER_SNAKE_CASE
+  - 例: `constants.py` 内に `API_ENDPOINTS`, `ERROR_MESSAGES`
 
 ### テストファイル名
 
-- パターン: `[テスト対象].test.ts` または `[テスト対象].spec.ts`
-- 例: `TaskService.test.ts`, `formatDate.spec.ts`
+- パターン: `test_[テスト対象].py`
+- 例: `test_task_service.py`, `test_format_date.py`
 
 ## 依存関係のルール
 
 ### レイヤー間の依存
 
 ```
-UIレイヤー
+presentation(プレゼンテーション層)
     ↓ (OK)
-サービスレイヤー
+application(アプリケーション層)
     ↓ (OK)
-データレイヤー
+domain(ドメイン層)★中心
+    ↑ (OK)
+infrastructure(インフラ層)
 ```
 
 **禁止される依存**:
-- データレイヤー → サービスレイヤー (❌)
-- データレイヤー → UIレイヤー (❌)
-- サービスレイヤー → UIレイヤー (❌)
+- domain → application / infrastructure / presentation (❌ ドメイン層は標準ライブラリのみ)
+- application → infrastructure / presentation (❌)
+- infrastructure → application / presentation (❌)
 
 ### モジュール間の依存
 
 **循環依存の禁止**:
-```typescript
-// ❌ 悪い例: 循環依存
-// fileA.ts
-import { funcB } from './fileB';
+```python
+# ❌ 悪い例: 循環依存
+# module_a.py
+from {パッケージ名}.module_b import func_b
 
-// fileB.ts
-import { funcA } from './fileA';  // 循環依存
+# module_b.py
+from {パッケージ名}.module_a import func_a  # 循環依存
 ```
 
 **解決策**:
-```typescript
-// ✅ 良い例: 共通モジュールの抽出
-// shared.ts
-export interface SharedType { /* ... */ }
+```python
+# ✅ 良い例: 共通モジュールの抽出
+# shared.py
+class SharedType: ...
 
-// fileA.ts
-import { SharedType } from './shared';
+# module_a.py
+from {パッケージ名}.shared import SharedType
 
-// fileB.ts
-import { SharedType } from './shared';
+# module_b.py
+from {パッケージ名}.shared import SharedType
 ```
 
 ## スケーリング戦略
@@ -224,18 +221,19 @@ import { SharedType } from './shared';
 新しい機能を追加する際の配置方針:
 
 1. **小規模機能**: 既存ディレクトリに配置
-2. **中規模機能**: レイヤー内にサブディレクトリを作成
+2. **中規模機能**: レイヤー内にサブディレクトリ(サブパッケージ)を作成
 3. **大規模機能**: 独立したモジュールとして分離
 
 **例**:
 ```
-src/
-├── services/
-│   ├── TaskService.ts           # 既存機能
-│   └── task-management/         # 中規模機能の分離
-│       ├── TaskService.ts
-│       ├── SubtaskService.ts
-│       └── TaskCategoryService.ts
+src/{パッケージ名}/
+├── domain/
+│   └── models/
+│       ├── user.py               # 既存機能
+│       └── task/                 # 中規模機能の分離(集約単位)
+│           ├── task.py
+│           ├── subtask.py
+│           └── task_category.py
 ```
 
 ### ファイルサイズの管理
@@ -246,14 +244,14 @@ src/
 - 500行以上: 分割を強く推奨
 
 **分割方法**:
-```typescript
-// 悪い例: 1ファイルに全機能
-// TaskService.ts (800行)
+```python
+# 悪い例: 1ファイルに全機能
+# task_service.py (800行)
 
-// 良い例: 責務ごとに分割
-// TaskService.ts (200行) - CRUD操作
-// TaskValidationService.ts (150行) - バリデーション
-// TaskNotificationService.ts (100行) - 通知処理
+# 良い例: 責務ごとに分割
+# task_service.py (200行) - CRUD操作
+# task_validation_service.py (150行) - バリデーション
+# task_notification_service.py (100行) - 通知処理
 ```
 
 ## 特殊ディレクトリ
@@ -290,17 +288,20 @@ src/
 ### .gitignore
 
 プロジェクトで除外すべきファイル:
-- `node_modules/`
+- `.venv/`
+- `__pycache__/`
+- `.pytest_cache/`
+- `.ruff_cache/`
+- `.mypy_cache/`
 - `dist/`
 - `.env`
 - `.steering/` (タスク管理用の一時ファイル)
 - `*.log`
 - `.DS_Store`
 
-### .prettierignore, .eslintignore
+### ツールの除外設定(pyproject.toml)
 
-ツールで除外すべきファイル:
-- `dist/`
-- `node_modules/`
-- `.steering/`
-- `coverage/`
+ruff・mypy・pytestで除外すべきファイルは `pyproject.toml` の各セクションで指定する:
+- `[tool.ruff]` の `exclude`: `.venv/`, `.steering/`
+- `[tool.mypy]` の `exclude`: `.venv/`, `.steering/`
+- カバレッジ計測対象は `src/` のみとする(`uv run pytest --cov=src`)

@@ -27,19 +27,52 @@ graph TB
 
 ### エンティティ: [エンティティ名]
 
-```typescript
-interface [EntityName] {
-  id: string;              // UUID
-  [field1]: [type];        // [説明]
-  [field2]: [type];        // [説明]
-  createdAt: Date;         // 作成日時
-  updatedAt: Date;         // 更新日時
-}
+```python
+from dataclasses import dataclass, field
+from datetime import datetime
+from uuid import UUID, uuid4
+
+
+@dataclass
+class [EntityName]:
+    """[説明]（エンティティ・集約ルート）"""
+    [field1]: [type]                          # [説明]
+    [field2]: [type]                          # [説明]
+    created_at: datetime                      # 作成日時
+    updated_at: datetime                      # 更新日時
+    id: UUID = field(default_factory=uuid4)   # UUID
+    [optional_field]: [type] | None = None    # [説明]（オプション）
 ```
 
 **制約**:
 - [制約1]
 - [制約2]
+
+### 値オブジェクト・列挙型: [名前]
+
+```python
+from dataclasses import dataclass
+from enum import Enum
+
+
+class [EnumName](Enum):
+    [VALUE1] = "[value1]"
+    [VALUE2] = "[value2]"
+
+
+@dataclass(frozen=True)
+class [ValueObjectName]:
+    """[説明]（値オブジェクト）"""
+    [field1]: [type]    # [説明]
+
+    def __post_init__(self) -> None:
+        if [不正な条件]:
+            raise ValueError("[エラーメッセージ]")
+```
+
+**制約**:
+- 値オブジェクトは不変（`frozen=True`）とし、生成時にバリデーションする
+- 他の集約への参照はIDで持つ（オブジェクト参照しない）
 
 ### ER図
 
@@ -49,11 +82,11 @@ erDiagram
     ENTITY1 {
         string id PK
         string field1
-        datetime createdAt
+        datetime created_at
     }
     ENTITY2 {
         string id PK
-        string entity1Id FK
+        string entity1_id FK
         string field1
     }
 ```
@@ -67,11 +100,13 @@ erDiagram
 - [責務2]
 
 **インターフェース**:
-```typescript
-class [ComponentName] {
-  [method1]([params]): [return];
-  [method2]([params]): [return];
-}
+```python
+class [ComponentName]:
+    def [method1](self, [params]) -> [return]:
+        """[説明]"""
+
+    def [method2](self, [params]) -> [return]:
+        """[説明]"""
 ```
 
 **依存関係**:
@@ -170,22 +205,23 @@ POST /api/[resource]
 - [分類3]: スコア < [閾値]
 
 **実装例**:
-```typescript
-function [algorithmName]([params]): [return] {
-  // ステップ1
-  const score1 = [calculation];
+```python
+def [algorithm_name]([params]) -> [return]:
+    # ステップ1
+    score1 = [calculation]
 
-  // ステップ2
-  const score2 = [calculation];
+    # ステップ2
+    score2 = [calculation]
 
-  // 総合スコア
-  const totalScore = (score1 * weight1) + (score2 * weight2);
+    # 総合スコア
+    total_score = (score1 * weight1) + (score2 * weight2)
 
-  // 分類
-  if (totalScore >= threshold1) return '[分類1]';
-  if (totalScore >= threshold2) return '[分類2]';
-  return '[分類3]';
-}
+    # 分類
+    if total_score >= threshold1:
+        return [分類1]
+    if total_score >= threshold2:
+        return [分類2]
+    return [分類3]
 ```
 
 ## UI設計（該当する場合）

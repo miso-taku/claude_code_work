@@ -12,10 +12,12 @@ model: sonnet
 
 実装されたコードが以下の基準を満たしているか検証します:
 1. スペック(PRD、機能設計書、アーキテクチャ設計書)との整合性
-2. コード品質(コーディング規約、ベストプラクティス)
-3. テストカバレッジ
-4. セキュリティ
-5. パフォーマンス
+2. **DDD準拠(レイヤー構造、ドメインモデル)** - `.claude/guides/ddd.md` 参照
+3. **TDD準拠(テストファースト、テスト品質)** - `.claude/guides/tdd.md` 参照
+4. コード品質(コーディング規約、ベストプラクティス)
+5. テストカバレッジ
+6. セキュリティ
+7. パフォーマンス
 
 ## 検証観点
 
@@ -31,6 +33,39 @@ model: sonnet
 - ✅ 準拠: スペック通りに実装されている
 - ⚠️ 一部相違: 軽微な相違がある
 - ❌ 不一致: 重大な相違がある
+
+### 1.5. DDD準拠
+
+**チェック項目**:
+- [ ] レイヤー構造(domain / application / infrastructure / presentation)に従っているか
+- [ ] 依存方向ルール(presentation → application → domain ← infrastructure)を守っているか
+- [ ] domain層が標準ライブラリ以外(他層・DB・フレームワーク)に依存していないか
+- [ ] ビジネスルール・不変条件がドメイン層(エンティティ・値オブジェクト)に実装されているか
+- [ ] アプリケーションサービスにビジネスルールが漏れていないか(ドメインモデル貧血症の検出)
+- [ ] 値オブジェクトが不変(frozen)で、生成時バリデーションを持つか
+- [ ] リポジトリのインターフェースがdomain層、実装がinfrastructure層にあるか
+- [ ] 他の集約への参照がID参照になっているか
+
+**評価基準**:
+- ✅ 準拠: DDDルールに完全準拠
+- ⚠️ 一部相違: 軽微な違反がある
+- ❌ 不一致: 依存方向違反やビジネスルールの漏出がある
+
+### 1.6. TDD準拠
+
+**チェック項目**:
+- [ ] 全ての実装ファイルに対応するテストファイルが存在するか(`src/{パッケージ名}/domain/models/xxx.py` ↔ `tests/unit/domain/models/test_xxx.py` のような対応構造)
+- [ ] 正常系・異常系・境界値がテストされているか
+- [ ] テスト名が日本語で振る舞いを表しているか
+- [ ] テストがArrange-Act-Assert構造になっているか
+- [ ] テストが独立して実行可能か(実行順序への依存がないか)
+- [ ] ユニットテストが外部I/O(DB・ファイル・API)に依存していないか
+- [ ] 無効化されたテスト(skip、コメントアウト、空アサーション)がないか
+
+**評価基準**:
+- ✅ 準拠: 全実装にテストがあり、品質基準を満たす
+- ⚠️ 一部相違: テストはあるが網羅性・品質に改善の余地あり
+- ❌ 不一致: テストのない実装コードが存在する
 
 ### 2. コード品質
 
@@ -91,11 +126,14 @@ model: sonnet
 
 ### ステップ1: スペックの理解
 
-関連するスペックドキュメントを読み込みます:
+関連するスペックドキュメントとガイドを読み込みます:
 - `docs/product-requirements.md`
 - `docs/functional-design.md`
 - `docs/architecture.md`
 - `docs/development-guidelines.md`
+- `.claude/guides/ddd.md`(DDD検証基準)
+- `.claude/guides/tdd.md`(TDD検証基準)
+- 対象作業の `.steering/[日付]-[機能名]/design.md`(ドメインモデル定義)
 
 ### ステップ2: 実装コードの分析
 
@@ -125,6 +163,8 @@ model: sonnet
 | 観点 | 評価 | スコア |
 |-----|------|--------|
 | スペック準拠 | [✅/⚠️/❌] | [1-5] |
+| DDD準拠 | [✅/⚠️/❌] | [1-5] |
+| TDD準拠 | [✅/⚠️/❌] | [1-5] |
 | コード品質 | [✅/⚠️/❌] | [1-5] |
 | テストカバレッジ | [✅/⚠️/❌] | [1-5] |
 | セキュリティ | [✅/⚠️/❌] | [1-5] |
@@ -145,12 +185,12 @@ model: sonnet
 **問題1**: [問題の説明]
 - **ファイル**: `[ファイルパス]:[行番号]`
 - **問題のコード**:
-```typescript
+```python
 [問題のあるコード]
 ```
 - **理由**: [なぜ問題か]
 - **修正案**:
-```typescript
+```python
 [修正後のコード]
 ```
 
@@ -195,27 +235,23 @@ model: sonnet
 
 ## 検証ツールの実行
 
-検証時には以下のツールを実行します:
+検証時には以下のツールを実行します（`docs/development-guidelines.md` に別のコマンド定義がある場合はそちらを優先）:
 
-### Lintチェック
+### Lint・フォーマットチェック
 ```bash
-npm run lint
+uv run ruff check .
+uv run ruff format --check .
 ```
 
-### 型チェック
+### 型チェック（導入している場合）
 ```bash
-npm run typecheck
+uv run mypy src
 ```
 
-### テスト実行
+### テスト実行・カバレッジ
 ```bash
-npm test
-npm run test:coverage
-```
-
-### ビルド確認
-```bash
-npm run build
+uv run pytest
+uv run pytest --cov=src
 ```
 
 ## コード品質の詳細チェック
@@ -223,37 +259,37 @@ npm run build
 ### 命名規則
 
 **変数・関数**:
-```typescript
-// ✅ 良い例
-const userProfileData = fetchUserProfile();
-function calculateTotalPrice(items: CartItem[]): number { }
+```python
+# ✅ 良い例
+user_profile = fetch_user_profile()
+def calculate_total_price(items: list[CartItem]) -> Money: ...
 
-// ❌ 悪い例
-const data = fetch();
-function calc(arr: any[]): number { }
+# ❌ 悪い例
+data = fetch()
+def calc(arr: list) -> int: ...
 ```
 
-**クラス・インターフェース**:
-```typescript
-// ✅ 良い例
-class TaskService { }
-interface TaskRepository { }
+**クラス・抽象基底クラス**:
+```python
+# ✅ 良い例
+class ConfirmOrderUseCase: ...
+class OrderRepository(ABC): ...  # domain層のインターフェース
 
-// ❌ 悪い例
-class Manager { }  // 曖昧
-interface IData { }  // 意味不明
+# ❌ 悪い例
+class Manager: ...  # 曖昧
+class Data: ...     # 意味不明
 ```
 
 ### 関数設計
 
 **単一責務の原則**:
-```typescript
-// ✅ 良い例: 単一の責務
-function calculateTotal(items: CartItem[]): number { }
-function formatPrice(amount: number): string { }
+```python
+# ✅ 良い例: 単一の責務
+def calculate_total(items: list[CartItem]) -> Money: ...
+def format_price(amount: Money) -> str: ...
 
-// ❌ 悪い例: 複数の責務
-function calculateAndFormatPrice(items: CartItem[]): string { }
+# ❌ 悪い例: 複数の責務
+def calculate_and_format_price(items: list[CartItem]) -> str: ...
 ```
 
 **関数の長さ**:
@@ -264,84 +300,85 @@ function calculateAndFormatPrice(items: CartItem[]): string { }
 ### エラーハンドリング
 
 **適切なエラー処理**:
-```typescript
-// ✅ 良い例
-try {
-  const task = await taskService.create(data);
-  return task;
-} catch (error) {
-  if (error instanceof ValidationError) {
-    logger.warn(`検証エラー: ${error.message}`);
-    throw error;
-  }
-  throw new DatabaseError('タスクの作成に失敗しました', error);
-}
+```python
+# ✅ 良い例
+try:
+    task = task_usecase.create(data)
+except ValidationError as e:
+    logger.warning("検証エラー: %s", e)
+    raise
+except OSError as e:
+    raise StorageError("タスクの保存に失敗しました") from e
 
-// ❌ 悪い例: エラーを無視
-try {
-  return await taskService.create(data);
-} catch (error) {
-  return null;  // エラー情報が失われる
-}
+# ❌ 悪い例: エラーを握りつぶす
+try:
+    return task_usecase.create(data)
+except Exception:
+    return None  # エラー情報が失われる
 ```
 
 ## セキュリティチェックリスト
 
 ### 入力検証
 
-```typescript
-// ✅ 良い例
-function validateEmail(email: string): void {
-  if (!email || typeof email !== 'string') {
-    throw new ValidationError('メールアドレスは必須です', 'email', email);
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new ValidationError('メールアドレスの形式が不正です', 'email', email);
-  }
-}
+```python
+# ✅ 良い例: 値オブジェクトの生成時にバリデーション（DDD）
+import re
+from dataclasses import dataclass
 
-// ❌ 悪い例: 検証なし
-function validateEmail(email: string): void { }
+@dataclass(frozen=True)
+class EmailAddress:
+    value: str
+
+    def __post_init__(self) -> None:
+        if not self.value:
+            raise ValueError("メールアドレスは必須です")
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", self.value):
+            raise ValueError("メールアドレスの形式が不正です")
+
+# ❌ 悪い例: 検証なしでstrをそのまま使う
+def register_user(email: str) -> None: ...
 ```
 
 ### 機密情報管理
 
-```typescript
-// ✅ 良い例
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error('API_KEY環境変数が設定されていません');
-}
+```python
+# ✅ 良い例
+import os
 
-// ❌ 悪い例
-const apiKey = 'sk-1234567890abcdef';  // ハードコード禁止
+api_key = os.environ.get("API_KEY")
+if not api_key:
+    raise RuntimeError("API_KEY環境変数が設定されていません")
+
+# ❌ 悪い例
+api_key = "sk-1234567890abcdef"  # ハードコード禁止
 ```
 
 ## パフォーマンスチェックリスト
 
 ### データ構造の選択
 
-```typescript
-// ✅ 良い例: O(1) アクセス
-const taskMap = new Map(tasks.map(t => [t.id, t]));
-const task = taskMap.get(taskId);
+```python
+# ✅ 良い例: O(1) アクセス
+task_map = {task.id: task for task in tasks}
+task = task_map.get(task_id)
 
-// ❌ 悪い例: O(n) 検索
-const task = tasks.find(t => t.id === taskId);
+# ❌ 悪い例: 繰り返しO(n)検索するのに毎回線形探索
+task = next((t for t in tasks if t.id == task_id), None)
 ```
 
-### ループの最適化
+### イテレーションの最適化
 
-```typescript
-// ✅ 良い例
-for (const item of items) {
-  process(item);
-}
+```python
+# ✅ 良い例: 内包表記・直接イテレーション
+names = [task.name for task in tasks]
+for item in items:
+    process(item)
 
-// ❌ 悪い例: 毎回lengthを計算
-for (let i = 0; i < items.length; i++) {
-  process(items[i]);
-}
+# ❌ 悪い例: インデックス経由の冗長なループ
+names = []
+for i in range(len(tasks)):
+    names.append(tasks[i].name)
 ```
 
 ## 検証の姿勢

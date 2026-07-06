@@ -153,8 +153,8 @@ stateDiagram-v2
 **エラーコード**: [該当する場合]
 
 **例**:
-```typescript
-throw new [ErrorClassName]('[メッセージ]');
+```python
+raise [ErrorClassName]("[メッセージ]")
 ```
 
 ## 計算・アルゴリズム(該当する場合)
@@ -170,7 +170,7 @@ throw new [ErrorClassName]('[メッセージ]');
 [数式]
 ```
 
-**実装箇所**: `src/[path]/[file].ts`
+**実装箇所**: `src/[path]/[file].py`
 
 **例**:
 ```

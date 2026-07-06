@@ -10,6 +10,22 @@ allowed-tools: Read, Write, Edit
 1. 実装時のコーディング規約 (implementation-guide.md)
 2. 開発プロセスの標準化 (process-guide.md)
 
+## 🚨 実装手法の必須ルール: テスト駆動開発（TDD）
+
+**このプロジェクトの実装は必ずTDDに従う。テストコードを書いてから実装コードを書く。**
+
+- コード実装を始める前に、必ず `.claude/guides/tdd.md` を読むこと
+- 各タスクで Red（テスト作成・失敗確認）→ Green（実装・成功確認）→ Refactor のサイクルを厳守する
+- 「実装してから後でテストを書く」は禁止
+- 設計はDDDに従う（`.claude/guides/ddd.md` 参照）。テスト対象のロジックの置き場所（ドメイン層）に注意すること
+
+## 🚨 開発ガイドライン作成時の必須ルール
+
+`docs/development-guidelines.md` を新規作成・更新する際は、以下を必ず含めること:
+
+- テスト戦略のセクションに「TDD必須（`.claude/guides/tdd.md` 準拠）」を明記
+- 設計規約のセクションに「DDD必須（`.claude/guides/ddd.md` 準拠）」を明記
+
 ## 前提条件
 
 開発ガイドライン作成を開始する前に、以下を確認してください:
@@ -53,12 +69,12 @@ docs/development-guidelines.md
 コード実装時のルールと規約: ./guides/implementation.md
 
 含まれる内容:
-- TypeScript/JavaScript規約
-- 型定義・命名規則
-- 関数設計とエラーハンドリング
-- コメント規約
+- Python規約（型ヒント・dataclass・Enum・ABC）
+- 命名規則（snake_case / PascalCase / UPPER_SNAKE_CASE）
+- 関数設計とエラーハンドリング（カスタム例外・raise from）
+- docstring（Googleスタイル）とコメント規約
 - セキュリティとパフォーマンス
-- テストコード実装
+- テストコード実装（pytest、詳細は `.claude/guides/tdd.md`）
 - リファクタリング手法
 
 ### 開発プロセスの参照／策定時
@@ -68,9 +84,9 @@ Git運用、テスト戦略、コードレビュー: ./guides/process.md
 - 基本原則（具体例の重要性、理由説明）
 - Git運用ルール（Git Flow ブランチ戦略）
 - コミットメッセージとPRプロセス
-- テスト戦略（ピラミッドとカバレッジ）
-- コードレビューのプロセス
-- 品質自動化
+- テスト戦略（ピラミッドとカバレッジ、TDD必須）
+- コードレビューのプロセス（DDD/TDD観点を含む）
+- 品質自動化（uv / Ruff / mypy / pytest / GitHub Actions / pre-commit）
 
 ### テンプレート
 開発ガイドライン作成時: ./template.md

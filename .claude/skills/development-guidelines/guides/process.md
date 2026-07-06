@@ -1,5 +1,12 @@
 # プロセスガイド (Process Guide)
 
+本プロジェクトの技術スタック（Python 3.12 + uv + pytest + ruff）に基づく開発プロセスです。
+
+**前提となる必須ルール**:
+- テスト戦略: TDD必須（`.claude/guides/tdd.md` 準拠。テストを先に書く）
+- 設計手法: DDD必須（`.claude/guides/ddd.md` 準拠）
+- プロジェクト固有規約: `docs/development-guidelines.md`（存在する場合は最優先）
+
 ## 基本原則
 
 ### 1. 具体例を豊富に含める
@@ -12,14 +19,14 @@
 ```
 
 **良い例**:
-```typescript
-// ✅ 良い例: 役割が明確
-const userAuthentication = new UserAuthenticationService();
-const taskRepository = new TaskRepository();
+```python
+# ✅ 良い例: 役割が明確
+user_authentication = UserAuthenticationService()
+task_repository = JsonTaskRepository(storage_path)
 
-// ❌ 悪い例: 曖昧
-const auth = new Service();
-const repo = new Repository();
+# ❌ 悪い例: 曖昧
+auth = Service()
+repo = Repository()
 ```
 
 ### 2. 理由を説明する
@@ -47,7 +54,7 @@ const repo = new Repository();
 **良い例**:
 ```
 コードカバレッジ目標:
-- ユニットテスト: 80%以上
+- ユニットテスト: 80%以上（ドメイン層は90%以上）
 - 統合テスト: 60%以上
 - E2Eテスト: 主要フロー100%
 ```
@@ -116,16 +123,16 @@ feat(task): 優先度設定機能を追加
 ユーザーがタスクに優先度(高/中/低)を設定できるようになりました。
 
 実装内容:
-- Taskモデルにpriorityフィールド追加
+- Taskエンティティにpriority値オブジェクトを追加
 - CLI に --priority オプション追加
 - 優先度によるソート機能実装
 
 破壊的変更:
-- Task型の構造が変更されました
+- Taskの構造が変更されました
 - 既存のタスクデータはマイグレーションが必要です
 
 Closes #123
-BREAKING CHANGE: Task型にpriority必須フィールド追加
+BREAKING CHANGE: Taskにpriority必須フィールド追加
 ```
 
 ### プルリクエストのテンプレート
@@ -153,12 +160,12 @@ BREAKING CHANGE: Task型にpriority必須フィールド追加
 
 ## テスト
 ### 実施したテスト
-- [ ] ユニットテスト追加
+- [ ] ユニットテスト追加（TDDで実装コードより先に作成）
 - [ ] 統合テスト追加
 - [ ] 手動テスト実施
 
 ### テスト結果
-[テスト結果の説明]
+[uv run pytest の結果、カバレッジ]
 
 ## 関連Issue
 Closes #[番号]
@@ -169,6 +176,8 @@ Refs #[番号]
 ```
 
 ## テスト戦略
+
+**実装手順としてのTDD（テストファースト、Red-Green-Refactor）は `.claude/guides/tdd.md` に従うこと。** このセクションはテスト全体の構成と目標値を定義します。
 
 ### テストピラミッド
 
@@ -183,72 +192,66 @@ Refs #[番号]
 ```
 
 **目標比率**:
-- ユニットテスト: 70%
-- 統合テスト: 20%
-- E2Eテスト: 10%
+- ユニットテスト: 70%（`tests/unit/` — ドメイン層・アプリケーション層が中心）
+- 統合テスト: 20%（`tests/integration/` — インフラ層を含む結合）
+- E2Eテスト: 10%（主要ユーザーフロー）
 
 ### テストの書き方
 
-**Given-When-Then パターン**:
+**Arrange-Act-Assert（AAA）パターン**（詳細・テスト命名規則は `.claude/guides/tdd.md`）:
 
-```typescript
-describe('TaskService', () => {
-  describe('タスク作成', () => {
-    it('正常なデータの場合、タスクを作成できる', async () => {
-      // Given: 準備
-      const service = new TaskService(mockRepository);
-      const validData = { title: 'テスト' };
+```python
+# tests/unit/application/usecases/test_create_task.py
+import pytest
 
-      // When: 実行
-      const result = await service.create(validData);
+class TestCreateTask:
+    def test_正常なデータの場合タスクを作成できる(self) -> None:
+        # Arrange: 準備
+        repository = InMemoryTaskRepository()
+        usecase = CreateTaskUseCase(repository)
+        command = CreateTaskCommand(title="テスト")
 
-      // Then: 検証
-      expect(result.id).toBeDefined();
-      expect(result.title).toBe('テスト');
-    });
+        # Act: 実行
+        task = usecase.execute(command)
 
-    it('タイトルが空の場合、ValidationErrorをスローする', async () => {
-      // Given: 準備
-      const service = new TaskService(mockRepository);
-      const invalidData = { title: '' };
+        # Assert: 検証
+        assert task.title == "テスト"
+        assert repository.find_by_id(task.id) is not None
 
-      // When/Then: 実行と検証
-      await expect(
-        service.create(invalidData)
-      ).rejects.toThrow(ValidationError);
-    });
-  });
-});
+    def test_タイトルが空の場合ValidationErrorになる(self) -> None:
+        repository = InMemoryTaskRepository()
+        usecase = CreateTaskUseCase(repository)
+
+        with pytest.raises(ValidationError):
+            usecase.execute(CreateTaskCommand(title=""))
 ```
 
 ### カバレッジ目標
 
-**測定可能な目標**:
+**測定可能な目標（pyproject.tomlに設定）**:
 
-```json
-// jest.config.js
-{
-  "coverageThreshold": {
-    "global": {
-      "branches": 80,
-      "functions": 80,
-      "lines": 80,
-      "statements": 80
-    },
-    "./src/services/": {
-      "branches": 90,
-      "functions": 90,
-      "lines": 90,
-      "statements": 90
-    }
-  }
-}
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
 ```
 
 **理由**:
-- 重要なビジネスロジック(services/)は高いカバレッジを要求
-- UI層は低めでも許容
-- 100%を目指さない (コストと効果のバランス)
+- 重要なビジネスロジック（domain層）は90%以上を目標とする
+- presentation層は低めでも許容
+- 100%を目指さない（コストと効果のバランス）
+
+カバレッジ確認コマンド:
+```bash
+uv run pytest --cov=src --cov-report=term-missing
+```
 
 ## コードレビュープロセス
 
@@ -269,18 +272,17 @@ describe('TaskService', () => {
 
 ## ✅ 良い例
 この実装だと O(n²) の時間計算量になります。
-Map を使うと O(n) に改善できます:
+dictを使うと O(n) に改善できます:
 
-```typescript
-const taskMap = new Map(tasks.map(t => [t.id, t]));
-const result = ids.map(id => taskMap.get(id));
-```
+    task_map = {t.id: t for t in tasks}
+    result = [task_map[i] for i in ids]
 ```
 
 2. **優先度の明示**
 ```markdown
 [必須] セキュリティ: パスワードがログに出力されています
-[推奨] パフォーマンス: ループ内でのDB呼び出しを避けましょう
+[必須] TDD違反: このモジュールに対応するテストがありません
+[推奨] DDD: このビジネスルールはユースケースではなくエンティティに移すべきです
 [提案] 可読性: この関数名をもっと明確にできませんか？
 [質問] この処理の意図を教えてください
 ```
@@ -308,6 +310,12 @@ const result = ids.map(id => taskMap.get(id));
    - 検討した代替案
    - 特に見てほしいポイント
 
+### レビュー観点（DDD/TDD）
+
+- テストが実装より先に書かれているか（コミット履歴・PR説明で確認）
+- ビジネスルールがドメイン層に置かれているか
+- レイヤーの依存方向違反がないか（domain層が他層をimportしていないか）
+
 ### レビュー時間の目安
 
 - 小規模PR (100行以下): 15分
@@ -323,35 +331,30 @@ const result = ids.map(id => taskMap.get(id));
 **自動化項目と採用ツール**:
 
 1. **Lintチェック**
-   - **ESLint 9.x** + **@typescript-eslint**
-     - TypeScript専用ルールセットでコーディング規約を統一
+   - **Ruff**
+     - Rust製で高速。Flake8/isort等の多数のルールセットを単一ツールで代替
      - 潜在的なバグや非推奨パターンを自動検出
-     - 設定ファイル: `eslint.config.js` (Flat Config形式)
+     - 設定: `pyproject.toml` の `[tool.ruff]`
 
 2. **コードフォーマット**
-   - **Prettier 3.x**
-     - コードスタイルを自動整形し、レビュー時の議論を削減
-     - ESLintと併用し、`eslint-config-prettier`で競合を回避
-     - 設定ファイル: `.prettierrc`
+   - **Ruff Formatter**（`ruff format`）
+     - Black互換のフォーマッタ。lintと同一ツールで完結し、設定の競合がない
 
 3. **型チェック**
-   - **TypeScript Compiler (tsc) 5.x**
-     - `tsc --noEmit`で型エラーのみをチェック
-     - ビルドとは独立して型安全性を検証
-     - 設定ファイル: `tsconfig.json`
+   - **mypy**（または pyright）
+     - `uv run mypy src` で型エラーをチェック
+     - `strict = true` を推奨（新規プロジェクトの場合）
+     - 設定: `pyproject.toml` の `[tool.mypy]`
 
 4. **テスト実行**
-   - **Vitest 2.x**
-     - Viteベースで高速起動・実行
-     - TypeScript/ESMをネイティブサポートし、設定不要で動作
-     - カバレッジ測定（@vitest/coverage-v8）が標準搭載
-     - モダンな開発体験とHMR対応
+   - **pytest** + **pytest-cov**
+     - fixture・パラメタライズによる表現力の高いテスト
+     - カバレッジ測定と `fail_under` による閾値強制
 
-5. **ビルド確認**
-   - **TypeScript Compiler (tsc)**
-     - 標準コンパイラで型チェック付きビルドを保証
-     - 追加ツール不要でシンプルな構成
-     - `tsconfig.json`で出力設定を一元管理
+5. **依存関係・環境管理**
+   - **uv**
+     - `uv sync` で `uv.lock` に基づく再現可能な環境を構築
+     - `uv add` / `uv add --dev` で依存を追加
 
 **実装方法**:
 
@@ -365,57 +368,56 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: astral-sh/setup-uv@v5
         with:
-          node-version: '24'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
+          python-version: "3.12"
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src
+      - run: uv run pytest --cov=src
 ```
 
-**2. Pre-commit フック (Husky 9.x + lint-staged)**
-```json
-// package.json
-{
-  "scripts": {
-    "prepare": "husky",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "build": "tsc"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ]
-  }
-}
+**2. Pre-commit フック (pre-commit フレームワーク)**
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0  # 導入時の最新版に更新する
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
 ```
+
 ```bash
-# .husky/pre-commit
-npm run lint-staged
-npm run typecheck
+# セットアップ
+uv add --dev pre-commit
+uv run pre-commit install
 ```
 
 **導入効果**:
 - コミット前に自動チェックが走り、不具合コードの混入を防止
 - PR作成時に自動でCI実行され、マージ前に品質を担保
-- 早期発見により、修正コストを最大80%削減（バグ検出が本番後の場合と比較）
+- テストなしの実装コード（TDD違反）をCIのカバレッジ閾値で検出
 
 **この構成を選んだ理由**:
-- 2025年時点でのTypeScriptエコシステムにおける標準的かつモダンな構成
-- ツール間の互換性が高く、設定の衝突が少ない
-- 開発体験と実行速度のバランスが優れている
+- uv + Ruff + pytest は現時点のPythonエコシステムにおける標準的かつモダンな構成
+- ツールが少なく高速で、設定の衝突がない
+- `pyproject.toml` に設定を一元化できる
 
 ## チェックリスト
 
 - [ ] ブランチ戦略が決まっている
 - [ ] コミットメッセージ規約が明確である
 - [ ] PRテンプレートが用意されている
-- [ ] テストの種類とカバレッジ目標が設定されている
-- [ ] コードレビュープロセスが定義されている
+- [ ] テストの種類とカバレッジ目標が設定されている（TDD必須が明記されている）
+- [ ] コードレビュープロセスが定義されている（DDD/TDD観点を含む）
 - [ ] CI/CDパイプラインが構築されている

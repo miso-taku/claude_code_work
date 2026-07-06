@@ -8,6 +8,15 @@ allowed-tools: Read, Write
 
 このスキルは、高品質なアーキテクチャ設計書を作成するための詳細ガイドです。
 
+## 🚨 設計手法の必須ルール: ドメイン駆動設計（DDD）
+
+**このプロジェクトの設計は必ずドメイン駆動設計に従う。**
+
+- アーキテクチャ設計を始める前に、必ず `.claude/guides/ddd.md` を読むこと
+- レイヤー構造は DDD の4層（domain / application / infrastructure / presentation）とし、依存方向ルールを厳守する
+- 設計書には必ずドメインモデル（エンティティ・値オブジェクト・集約・リポジトリ）と集約境界を記載する
+- 設計完了前に `.claude/guides/ddd.md` の「設計時チェックリスト」で自己検証する
+
 ## 前提条件
 
 アーキテクチャ設計を開始する前に、以下を確認してください:
@@ -16,6 +25,8 @@ allowed-tools: Read, Write
 
 1. `docs/product-requirements.md` (PRD)
 2. `docs/functional-design.md` (機能設計書)
+3. `.claude/guides/ddd.md` (DDD設計ガイド) - **必読**
+4. `docs/glossary.md` (ユビキタス言語定義) - 存在する場合は用語を統一する
 
 アーキテクチャ設計は、PRDの要件と機能設計を技術的に実現するための
 システム構造とテクノロジースタックを定義します。

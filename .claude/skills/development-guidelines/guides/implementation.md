@@ -1,144 +1,141 @@
 # 実装ガイド (Implementation Guide)
 
-## TypeScript/JavaScript 規約
+本プロジェクトの技術スタック（Python 3.12 + uv）に基づくコーディング規約です。
 
-### 型定義
+**前提となる必須ルール**:
+- 実装手法: TDD必須（`.claude/guides/tdd.md` 準拠。テストを先に書く）
+- 設計手法: DDD必須（`.claude/guides/ddd.md` 準拠。ビジネスルールはドメイン層に置く）
+- プロジェクト固有規約: `docs/development-guidelines.md`（存在する場合は最優先）
 
-**組み込み型の使用**:
-```typescript
-// ✅ 良い例: 組み込み型を使用
-function processItems(items: string[]): Record<string, number> {
-  return items.reduce((acc, item) => {
-    acc[item] = (acc[item] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-}
+## Python 規約
 
-// ❌ 悪い例: typingモジュールからインポート
-import { List, Dict } from 'typing';
-function processItems(items: List[str]): Dict[str, int] { }
+### 型ヒント
+
+**すべての関数・メソッドに型ヒントを付ける**:
+```python
+# ✅ 良い例: 引数・戻り値に型ヒント
+def calculate_total(prices: list[int]) -> int:
+    return sum(prices)
+
+# ❌ 悪い例: 型ヒントなし
+def calculate_total(prices):
+    return sum(prices)
 ```
 
-**型注釈の原則**:
-```typescript
-// ✅ 良い例: 明示的な型注釈
-function calculateTotal(prices: number[]): number {
-  return prices.reduce((sum, price) => sum + price, 0);
-}
+**組み込みジェネリクスを使用する（Python 3.9+の記法）**:
+```python
+# ✅ 良い例: 組み込み型をそのまま使用
+def count_items(items: list[str]) -> dict[str, int]: ...
+def find_task(task_id: UUID) -> Task | None: ...
 
-// ❌ 悪い例: 型推論に頼りすぎる
-function calculateTotal(prices) {  // any型になる
-  return prices.reduce((sum, price) => sum + price, 0);
-}
+# ❌ 悪い例: typingモジュールの旧記法
+from typing import List, Dict, Optional
+def count_items(items: List[str]) -> Dict[str, int]: ...
+def find_task(task_id: UUID) -> Optional[Task]: ...
 ```
 
-**インターフェース vs 型エイリアス**:
-```typescript
-// インターフェース: 拡張可能なオブジェクト型
-interface Task {
-  id: string;
-  title: string;
-  completed: boolean;
-}
+**構造の表現**:
+```python
+# データ構造: dataclassを使用（DDDの値オブジェクトはfrozen=True）
+from dataclasses import dataclass
 
-// 拡張
-interface ExtendedTask extends Task {
-  priority: string;
-}
+@dataclass(frozen=True)
+class Money:
+    amount: int
+    currency: str = "JPY"
 
-// 型エイリアス: ユニオン型、プリミティブ型など
-type TaskStatus = 'todo' | 'in_progress' | 'completed';
-type TaskId = string;
-type Nullable<T> = T | null;
+# 選択肢の集合: Enumを使用（文字列リテラルの散在を避ける）
+from enum import Enum
+
+class TaskStatus(Enum):
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+# 抽象インターフェース: ABCを使用（DDDのリポジトリインターフェース等）
+from abc import ABC, abstractmethod
+
+class TaskRepository(ABC):
+    @abstractmethod
+    def find_by_id(self, task_id: UUID) -> Task | None: ...
+
+# 型エイリアス: type文（Python 3.12+）
+type TaskId = UUID
 ```
 
 ### 命名規則
 
 **変数・関数**:
-```typescript
-// 変数: camelCase、名詞
-const userName = 'John';
-const taskList = [];
-const isCompleted = true;
+```python
+# 変数: snake_case、名詞
+user_name = "John"
+task_list: list[Task] = []
 
-// 関数: camelCase、動詞で始める
-function fetchUserData() { }
-function validateEmail(email: string) { }
-function calculateTotalPrice(items: Item[]) { }
+# 関数: snake_case、動詞で始める
+def fetch_user_data() -> UserData: ...
+def validate_email(email: str) -> None: ...
+def calculate_total_price(items: list[Item]) -> Money: ...
 
-// Boolean: is, has, should, canで始める
-const isValid = true;
-const hasPermission = false;
-const shouldRetry = true;
-const canDelete = false;
+# Boolean: is_, has_, should_, can_ で始める
+is_valid = True
+has_permission = False
+should_retry = True
+can_delete = False
 ```
 
-**クラス・インターフェース**:
-```typescript
-// クラス: PascalCase、名詞
-class TaskManager { }
-class UserAuthenticationService { }
+**クラス・例外**:
+```python
+# クラス: PascalCase、名詞（ユビキタス言語を使う）
+class Order: ...
+class ConfirmOrderUseCase: ...
 
-// インターフェース: PascalCase
-interface TaskRepository { }
-interface UserProfile { }
+# 抽象基底クラス: PascalCase（Iプレフィックスは付けない）
+class OrderRepository(ABC): ...   # ✅
+class IOrderRepository(ABC): ...  # ❌
 
-// 型エイリアス: PascalCase
-type TaskStatus = 'todo' | 'in_progress' | 'completed';
+# 例外: PascalCase + Errorサフィックス
+class ValidationError(Exception): ...
+class OrderNotFoundError(Exception): ...
 ```
 
 **定数**:
-```typescript
-// UPPER_SNAKE_CASE
-const MAX_RETRY_COUNT = 3;
-const API_BASE_URL = 'https://api.example.com';
-const DEFAULT_TIMEOUT = 5000;
-
-// 設定オブジェクトの場合
-const CONFIG = {
-  maxRetryCount: 3,
-  apiBaseUrl: 'https://api.example.com',
-  defaultTimeout: 5000,
-} as const;
+```python
+# UPPER_SNAKE_CASE（モジュールレベルに定義）
+MAX_RETRY_COUNT = 3
+API_BASE_URL = "https://api.example.com"
+DEFAULT_TIMEOUT_SECONDS = 5.0
 ```
 
-**ファイル名**:
-```typescript
-// クラスファイル: PascalCase
-// TaskService.ts
-// UserRepository.ts
+**モジュール・パッケージ名**:
+```python
+# モジュール: snake_case
+# order_repository.py, confirm_order.py
 
-// 関数・ユーティリティ: camelCase
-// formatDate.ts
-// validateEmail.ts
+# テストモジュール: test_ プレフィックスで実装と対応させる
+# order.py ↔ test_order.py
+```
 
-// コンポーネント(React等): PascalCase
-// TaskList.tsx
-// UserProfile.tsx
-
-// 定数: kebab-case または UPPER_SNAKE_CASE
-// api-endpoints.ts
-// ERROR_MESSAGES.ts
+**プライベート**:
+```python
+# 外部に公開しない属性・メソッドは _ プレフィックス
+class ConfirmOrderUseCase:
+    def __init__(self, order_repository: OrderRepository) -> None:
+        self._order_repository = order_repository
 ```
 
 ### 関数設計
 
 **単一責務の原則**:
-```typescript
-// ✅ 良い例: 単一の責務
-function calculateTotalPrice(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-}
+```python
+# ✅ 良い例: 単一の責務
+def calculate_total_price(items: list[CartItem]) -> Money:
+    return sum((item.subtotal() for item in items), Money(0))
 
-function formatPrice(amount: number): string {
-  return `¥${amount.toLocaleString()}`;
-}
+def format_price(amount: Money) -> str:
+    return f"¥{amount.amount:,}"
 
-// ❌ 悪い例: 複数の責務
-function calculateAndFormatPrice(items: CartItem[]): string {
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  return `¥${total.toLocaleString()}`;
-}
+# ❌ 悪い例: 計算と整形という複数の責務
+def calculate_and_format_price(items: list[CartItem]) -> str: ...
 ```
 
 **関数の長さ**:
@@ -146,448 +143,313 @@ function calculateAndFormatPrice(items: CartItem[]): string {
 - 推奨: 50行以内
 - 100行以上: リファクタリングを検討
 
-**パラメータの数**:
-```typescript
-// ✅ 良い例: オブジェクトでまとめる
-interface CreateTaskOptions {
-  title: string;
-  description?: string;
-  priority?: 'high' | 'medium' | 'low';
-  dueDate?: Date;
-}
+**引数の数（4個以上はまとめる）**:
+```python
+# ✅ 良い例: dataclassでまとめる + キーワード専用引数
+@dataclass(frozen=True)
+class CreateTaskCommand:
+    title: str
+    description: str = ""
+    priority: Priority = Priority.MEDIUM
+    due_date: date | None = None
 
-function createTask(options: CreateTaskOptions): Task {
-  // 実装
-}
+def create_task(command: CreateTaskCommand) -> Task: ...
 
-// ❌ 悪い例: パラメータが多すぎる
-function createTask(
-  title: string,
-  description: string,
-  priority: string,
-  dueDate: Date,
-  tags: string[],
-  assignee: string
-): Task {
-  // 実装
-}
+# ❌ 悪い例: 引数が多すぎる
+def create_task(title, description, priority, due_date, tags, assignee): ...
+```
+
+**ミュータブルなデフォルト引数の禁止**:
+```python
+# ✅ 良い例
+def add_tags(task: Task, tags: list[str] | None = None) -> None:
+    tags = tags if tags is not None else []
+
+# ❌ 悪い例: デフォルト値が呼び出し間で共有されるバグの温床
+def add_tags(task: Task, tags: list[str] = []) -> None: ...
 ```
 
 ### エラーハンドリング
 
-**カスタムエラークラス**:
-```typescript
-// エラークラスの定義
-class ValidationError extends Error {
-  constructor(
-    message: string,
-    public field: string,
-    public value: unknown
-  ) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
+**カスタム例外の定義（DDDのレイヤーに対応させる）**:
+```python
+# domain/exceptions.py — ビジネスルール違反
+class DomainError(Exception):
+    """ビジネスルール違反を表す基底例外"""
 
-class NotFoundError extends Error {
-  constructor(
-    public resource: string,
-    public id: string
-  ) {
-    super(`${resource} not found: ${id}`);
-    this.name = 'NotFoundError';
-  }
-}
+class OrderNotFoundError(DomainError):
+    def __init__(self, order_id: UUID) -> None:
+        super().__init__(f"注文が見つかりません: {order_id}")
+        self.order_id = order_id
 
-class DatabaseError extends Error {
-  constructor(message: string, public cause?: Error) {
-    super(message);
-    this.name = 'DatabaseError';
-    this.cause = cause;
-  }
-}
+# infrastructure層 — 技術的エラー
+class StorageError(Exception):
+    """永続化処理の失敗を表す例外"""
 ```
 
 **エラーハンドリングパターン**:
-```typescript
-// ✅ 良い例: 適切なエラーハンドリング
-async function getTask(id: string): Promise<Task> {
-  try {
-    const task = await repository.findById(id);
+```python
+# ✅ 良い例: 予期されるエラーは具体的に捕捉し、技術的エラーはfrom付きでラップ
+def get_task(self, task_id: UUID) -> Task:
+    try:
+        task = self._repository.find_by_id(task_id)
+    except OSError as e:
+        raise StorageError("タスクの取得に失敗しました") from e
 
-    if (!task) {
-      throw new NotFoundError('Task', id);
-    }
+    if task is None:
+        raise TaskNotFoundError(task_id)
+    return task
 
-    return task;
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      // 予期されるエラー: 適切に処理
-      logger.warn(`タスクが見つかりません: ${id}`);
-      throw error;
-    }
+# ❌ 悪い例1: 裸のexcept・エラーの握りつぶし
+def get_task(self, task_id: UUID) -> Task | None:
+    try:
+        return self._repository.find_by_id(task_id)
+    except Exception:
+        return None  # エラー情報が失われる
 
-    // 予期しないエラー: ラップして上位に伝播
-    throw new DatabaseError('タスクの取得に失敗しました', error as Error);
-  }
-}
-
-// ❌ 悪い例: エラーを無視
-async function getTask(id: string): Promise<Task | null> {
-  try {
-    return await repository.findById(id);
-  } catch (error) {
-    return null; // エラー情報が失われる
-  }
-}
+# ❌ 悪い例2: from なしの再送出（原因のトレースバックが失われる）
+except OSError:
+    raise StorageError("タスクの取得に失敗しました")
 ```
 
 **エラーメッセージ**:
-```typescript
-// ✅ 良い例: 具体的で解決策を示す
-throw new ValidationError(
-  'タイトルは1-200文字で入力してください。現在の文字数: 250',
-  'title',
-  title
-);
+```python
+# ✅ 良い例: 具体的で解決策を示す
+raise ValidationError(f"タイトルは1-200文字で入力してください。現在の文字数: {len(title)}")
 
-// ❌ 悪い例: 曖昧で役に立たない
-throw new Error('Invalid input');
+# ❌ 悪い例: 曖昧で役に立たない
+raise ValueError("Invalid input")
 ```
 
-### 非同期処理
+### コンテキストマネージャとリソース管理
 
-**async/await の使用**:
-```typescript
-// ✅ 良い例: async/await
-async function fetchUserTasks(userId: string): Promise<Task[]> {
-  try {
-    const user = await userRepository.findById(userId);
-    const tasks = await taskRepository.findByUserId(user.id);
-    return tasks;
-  } catch (error) {
-    logger.error('タスクの取得に失敗', error);
-    throw error;
-  }
-}
+```python
+# ✅ 良い例: with文でリソースを確実に解放
+from pathlib import Path
 
-// ❌ 悪い例: Promiseチェーン
-function fetchUserTasks(userId: string): Promise<Task[]> {
-  return userRepository.findById(userId)
-    .then(user => taskRepository.findByUserId(user.id))
-    .then(tasks => tasks)
-    .catch(error => {
-      logger.error('タスクの取得に失敗', error);
-      throw error;
-    });
-}
+def load_tasks(path: Path) -> list[Task]:
+    with path.open(encoding="utf-8") as f:
+        return parse_tasks(json.load(f))
+
+# ❌ 悪い例: closeを手動管理（例外時にリークする）
+def load_tasks(path: Path) -> list[Task]:
+    f = open(path)
+    data = json.load(f)
+    f.close()
+    return parse_tasks(data)
 ```
 
-**並列処理**:
-```typescript
-// ✅ 良い例: Promise.allで並列実行
-async function fetchMultipleUsers(ids: string[]): Promise<User[]> {
-  const promises = ids.map(id => userRepository.findById(id));
-  return Promise.all(promises);
-}
-
-// ❌ 悪い例: 逐次実行
-async function fetchMultipleUsers(ids: string[]): Promise<User[]> {
-  const users: User[] = [];
-  for (const id of ids) {
-    const user = await userRepository.findById(id); // 遅い
-    users.push(user);
-  }
-  return users;
-}
-```
+**パス操作は `pathlib.Path` を使う**（`os.path` の文字列操作は使わない）。
 
 ## コメント規約
 
-### ドキュメントコメント
+### docstring（Google スタイル）
 
-**TSDoc形式**:
-```typescript
-/**
- * タスクを作成する
- *
- * @param data - 作成するタスクのデータ
- * @returns 作成されたタスク
- * @throws {ValidationError} データが不正な場合
- * @throws {DatabaseError} データベースエラーの場合
- *
- * @example
- * ```typescript
- * const task = await createTask({
- *   title: '新しいタスク',
- *   priority: 'high'
- * });
- * ```
- */
-async function createTask(data: CreateTaskData): Promise<Task> {
-  // 実装
-}
+公開する関数・クラス・モジュールにはdocstringを書く:
+
+```python
+def create_task(command: CreateTaskCommand) -> Task:
+    """タスクを作成する。
+
+    Args:
+        command: 作成するタスクの内容。
+
+    Returns:
+        作成されたタスク。
+
+    Raises:
+        ValidationError: タイトルが不正な場合。
+        StorageError: 永続化に失敗した場合。
+    """
 ```
 
 ### インラインコメント
 
 **良いコメント**:
-```typescript
-// ✅ 理由を説明
-// キャッシュを無効化して最新データを取得
-cache.clear();
+```python
+# ✅ 理由を説明
+# キャッシュを無効化して最新データを取得
+cache.clear()
 
-// ✅ 複雑なロジックを説明
-// Kadaneのアルゴリズムで最大部分配列和を計算
-// 時間計算量: O(n)
-let maxSoFar = arr[0];
-let maxEndingHere = arr[0];
+# ✅ 複雑なロジックを説明
+# Kadaneのアルゴリズムで最大部分配列和を計算。時間計算量: O(n)
 
-// ✅ TODO・FIXMEを活用
-// TODO: キャッシュ機能を実装 (Issue #123)
-// FIXME: 大量データでパフォーマンス劣化 (Issue #456)
-// HACK: 一時的な回避策、後でリファクタリング必要
+# ✅ TODO・FIXMEを活用（Issue番号付き）
+# TODO: キャッシュ機能を実装 (Issue #123)
+# FIXME: 大量データでパフォーマンス劣化 (Issue #456)
 ```
 
 **悪いコメント**:
-```typescript
-// ❌ コードの内容を繰り返すだけ
-// iを1増やす
-i++;
+```python
+# ❌ コードの内容を繰り返すだけ
+i += 1  # iを1増やす
 
-// ❌ 古い情報
-// このコードは2020年に追加された (不要な情報)
-
-// ❌ コメントアウトされたコード
-// const oldImplementation = () => { ... };  // 削除すべき
+# ❌ コメントアウトされたコード（削除すべき。履歴はgitにある）
+# old_implementation()
 ```
 
 ## セキュリティ
 
 ### 入力検証
 
-```typescript
-// ✅ 良い例: 厳密な検証
-function validateEmail(email: string): void {
-  if (!email || typeof email !== 'string') {
-    throw new ValidationError('メールアドレスは必須です', 'email', email);
-  }
+```python
+# ✅ 良い例: 値オブジェクトの生成時にバリデーション（DDD）
+import re
+from dataclasses import dataclass
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    throw new ValidationError('メールアドレスの形式が不正です', 'email', email);
-  }
+@dataclass(frozen=True)
+class EmailAddress:
+    value: str
 
-  if (email.length > 254) {
-    throw new ValidationError('メールアドレスが長すぎます', 'email', email);
-  }
-}
+    def __post_init__(self) -> None:
+        if not self.value:
+            raise ValueError("メールアドレスは必須です")
+        if len(self.value) > 254:
+            raise ValueError("メールアドレスが長すぎます")
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", self.value):
+            raise ValueError("メールアドレスの形式が不正です")
 
-// ❌ 悪い例: 検証なし
-function validateEmail(email: string): void {
-  // 検証なし
-}
+# ❌ 悪い例: 検証されていないstrがシステム内を流れる
+def register_user(email: str) -> None: ...
 ```
 
 ### 機密情報の管理
 
-```typescript
-// ✅ 良い例: 環境変数から読み込み
-import { config } from './config';
+```python
+# ✅ 良い例: 環境変数から読み込み
+import os
 
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error('API_KEY環境変数が設定されていません');
-}
+api_key = os.environ.get("API_KEY")
+if not api_key:
+    raise RuntimeError("API_KEY環境変数が設定されていません")
 
-// ❌ 悪い例: ハードコード
-const apiKey = 'sk-1234567890abcdef'; // 絶対にしない！
+# ❌ 悪い例: ハードコード（絶対にしない）
+api_key = "sk-1234567890abcdef"
+```
+
+### インジェクション対策
+
+```python
+# ✅ 良い例: プレースホルダを使用
+cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+
+# ❌ 悪い例: 文字列結合（SQLインジェクション）
+cursor.execute(f"SELECT * FROM tasks WHERE id = '{task_id}'")
+
+# ✅ 外部コマンドはリスト形式で渡す（shell=Trueを避ける）
+subprocess.run(["git", "status"], check=True)
 ```
 
 ## パフォーマンス
 
 ### データ構造の選択
 
-```typescript
-// ✅ 良い例: Mapで O(1) アクセス
-const userMap = new Map(users.map(u => [u.id, u]));
-const user = userMap.get(userId); // O(1)
+```python
+# ✅ 良い例: 繰り返し検索するならdictでO(1)アクセス
+task_map = {task.id: task for task in tasks}
+task = task_map.get(task_id)
 
-// ❌ 悪い例: 配列で O(n) 検索
-const user = users.find(u => u.id === userId); // O(n)
+# ❌ 悪い例: 繰り返しの線形探索 O(n)
+task = next((t for t in tasks if t.id == task_id), None)
+
+# ✅ 所属チェックはsetで
+completed_ids = {t.id for t in completed_tasks}
+if task.id in completed_ids: ...
 ```
 
-### ループの最適化
+### イテレーションの最適化
 
-```typescript
-// ✅ 良い例: 不要な計算をループの外に
-const length = items.length;
-for (let i = 0; i < length; i++) {
-  process(items[i]);
-}
+```python
+# ✅ 良い例: 内包表記・ジェネレータ・直接イテレーション
+names = [task.name for task in tasks]
+total = sum(item.price for item in items)  # ジェネレータで中間リスト不要
+for index, item in enumerate(items): ...
 
-// ❌ 悪い例: 毎回lengthを計算
-for (let i = 0; i < items.length; i++) {
-  process(items[i]);
-}
-
-// ✅ より良い: for...ofを使用
-for (const item of items) {
-  process(item);
-}
+# ❌ 悪い例: インデックス経由の冗長なループ
+names = []
+for i in range(len(tasks)):
+    names.append(tasks[i].name)
 ```
 
 ### メモ化
 
-```typescript
-// 計算結果のキャッシュ
-const cache = new Map<string, Result>();
+```python
+# 純粋関数の重い計算は functools.cache でキャッシュ
+from functools import cache
 
-function expensiveCalculation(input: string): Result {
-  if (cache.has(input)) {
-    return cache.get(input)!;
-  }
-
-  const result = /* 重い計算 */;
-  cache.set(input, result);
-  return result;
-}
+@cache
+def expensive_calculation(key: str) -> Result: ...
 ```
 
 ## テストコード
 
-### テストの構造 (Given-When-Then)
+**テストの書き方・実行手順の正式なルールは `.claude/guides/tdd.md` に従うこと**（テストファースト、Red-Green-Refactor、AAA構造、日本語テスト名）。以下は規約の要点のみ。
 
-```typescript
-describe('TaskService', () => {
-  describe('create', () => {
-    it('正常なデータでタスクを作成できる', async () => {
-      // Given: 準備
-      const service = new TaskService(mockRepository);
-      const taskData = {
-        title: 'テストタスク',
-        description: 'テスト用の説明',
-      };
+```python
+# tests/unit/domain/models/test_order.py
+import pytest
 
-      // When: 実行
-      const result = await service.create(taskData);
+class TestOrderConfirm:
+    def test_明細のある注文は確定できる(self) -> None:
+        # Arrange（準備）
+        order = Order(lines=[OrderLine(product_id=uuid4(), quantity=1)])
 
-      // Then: 検証
-      expect(result).toBeDefined();
-      expect(result.id).toBeDefined();
-      expect(result.title).toBe('テストタスク');
-      expect(result.description).toBe('テスト用の説明');
-      expect(result.createdAt).toBeInstanceOf(Date);
-    });
+        # Act（実行）
+        order.confirm()
 
-    it('タイトルが空の場合ValidationErrorをスローする', async () => {
-      // Given: 準備
-      const service = new TaskService(mockRepository);
-      const invalidData = { title: '' };
+        # Assert（検証）
+        assert order.status is OrderStatus.CONFIRMED
 
-      // When/Then: 実行と検証
-      await expect(
-        service.create(invalidData)
-      ).rejects.toThrow(ValidationError);
-    });
-  });
-});
+    def test_明細のない注文は確定できない(self) -> None:
+        order = Order()
+
+        with pytest.raises(DomainError, match="明細のない注文は確定できない"):
+            order.confirm()
 ```
 
-### モックの作成
-
-```typescript
-// ✅ 良い例: インターフェースに基づくモック
-const mockRepository: TaskRepository = {
-  save: jest.fn(),
-  findById: jest.fn(),
-  findAll: jest.fn(),
-  delete: jest.fn(),
-};
-
-// テストごとに動作を設定
-beforeEach(() => {
-  mockRepository.findById = jest.fn((id) => {
-    if (id === 'existing-id') {
-      return Promise.resolve(mockTask);
-    }
-    return Promise.resolve(null);
-  });
-});
-```
+**テストダブル**: リポジトリ等の抽象（domain層のABC）に対するインメモリ実装（フェイク）を優先する。`unittest.mock.MagicMock` の多用は避け、使う場合も`spec=`で型を固定する。
 
 ## リファクタリング
 
 ### マジックナンバーの排除
 
-```typescript
-// ✅ 良い例: 定数を定義
-const MAX_RETRY_COUNT = 3;
-const RETRY_DELAY_MS = 1000;
+```python
+# ✅ 良い例: 定数を定義
+MAX_RETRY_COUNT = 3
+RETRY_DELAY_SECONDS = 1.0
 
-for (let i = 0; i < MAX_RETRY_COUNT; i++) {
-  try {
-    return await fetchData();
-  } catch (error) {
-    if (i < MAX_RETRY_COUNT - 1) {
-      await sleep(RETRY_DELAY_MS);
-    }
-  }
-}
+for attempt in range(MAX_RETRY_COUNT):
+    ...
 
-// ❌ 悪い例: マジックナンバー
-for (let i = 0; i < 3; i++) {
-  try {
-    return await fetchData();
-  } catch (error) {
-    if (i < 2) {
-      await sleep(1000);
-    }
-  }
-}
+# ❌ 悪い例: マジックナンバー
+for attempt in range(3):
+    ...
 ```
 
 ### 関数の抽出
 
-```typescript
-// ✅ 良い例: 関数を抽出
-function processOrder(order: Order): void {
-  validateOrder(order);
-  calculateTotal(order);
-  applyDiscounts(order);
-  saveOrder(order);
-}
+```python
+# ✅ 良い例: 意図が読める単位に抽出
+def process_order(order: Order) -> None:
+    _validate_order(order)
+    _apply_discounts(order)
+    _save_order(order)
 
-function validateOrder(order: Order): void {
-  if (!order.items || order.items.length === 0) {
-    throw new ValidationError('商品が選択されていません', 'items', order.items);
-  }
-}
+# ❌ 悪い例: 検証・計算・永続化が1関数に混在した長い関数
+```
 
-function calculateTotal(order: Order): void {
-  order.total = order.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-}
+### 早期リターンでネストを浅くする
 
-// ❌ 悪い例: 長い関数
-function processOrder(order: Order): void {
-  if (!order.items || order.items.length === 0) {
-    throw new ValidationError('商品が選択されていません', 'items', order.items);
-  }
+```python
+# ✅ 良い例: ガード節
+def confirm(self) -> None:
+    if not self.lines:
+        raise DomainError("明細のない注文は確定できない")
+    if self.status is not OrderStatus.DRAFT:
+        raise DomainError("下書き状態の注文のみ確定できる")
+    self.status = OrderStatus.CONFIRMED
 
-  order.total = order.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  if (order.coupon) {
-    order.total -= order.total * order.coupon.discountRate;
-  }
-
-  repository.save(order);
-}
+# ❌ 悪い例: if のネストが深い（4レベル以上は禁止）
 ```
 
 ## チェックリスト
@@ -595,33 +457,35 @@ function processOrder(order: Order): void {
 実装完了前に確認:
 
 ### コード品質
-- [ ] 命名が明確で一貫している
+- [ ] 命名が明確で一貫している（snake_case / PascalCase / UPPER_SNAKE_CASE）
+- [ ] 全関数に型ヒントがある（組み込みジェネリクス、`X | None`記法）
 - [ ] 関数が単一の責務を持っている
 - [ ] マジックナンバーがない
-- [ ] 型注釈が適切に記載されている
-- [ ] エラーハンドリングが実装されている
+- [ ] エラーハンドリングが実装されている（裸のexcept・握りつぶしがない、`raise ... from e`）
+
+### 設計（DDD）
+- [ ] ビジネスルールがドメイン層に置かれている
+- [ ] レイヤーの依存方向ルールを守っている（`.claude/guides/ddd.md`）
 
 ### セキュリティ
-- [ ] 入力検証が実装されている
+- [ ] 入力検証が実装されている（値オブジェクトでの検証を優先）
 - [ ] 機密情報がハードコードされていない
-- [ ] SQLインジェクション対策がされている
+- [ ] SQL・コマンドインジェクション対策がされている
 
 ### パフォーマンス
-- [ ] 適切なデータ構造を使用している
-- [ ] 不要な計算を避けている
-- [ ] ループが最適化されている
+- [ ] 適切なデータ構造を使用している（dict/setの活用）
+- [ ] 不要な計算・中間リストを避けている
 
-### テスト
-- [ ] ユニットテストが書かれている
-- [ ] テストがパスする
-- [ ] エッジケースがカバーされている
+### テスト（TDD）
+- [ ] テストコードを実装より先に書いた（`.claude/guides/tdd.md`）
+- [ ] `uv run pytest` がパスする
+- [ ] 正常系・異常系・境界値がカバーされている
 
 ### ドキュメント
-- [ ] 関数・クラスにTSDocコメントがある
-- [ ] 複雑なロジックにコメントがある
-- [ ] TODOやFIXMEが記載されている(該当する場合)
+- [ ] 公開関数・クラスにdocstring（Googleスタイル）がある
+- [ ] 複雑なロジックに理由を説明するコメントがある
 
 ### ツール
-- [ ] Lintエラーがない
-- [ ] 型チェックがパスする
-- [ ] フォーマットが統一されている
+- [ ] `uv run ruff check .` でエラーがない
+- [ ] `uv run ruff format --check .` でフォーマットが統一されている
+- [ ] `uv run mypy src` がパスする（導入している場合）

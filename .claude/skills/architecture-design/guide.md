@@ -6,36 +6,35 @@
 
 **悪い例**:
 ```
-- Node.js
-- TypeScript
+- Python
+- uv
 ```
 
 **良い例**:
 ```
-- Node.js v24.11.0 (LTS)
-  - 2026年4月までの長期サポート保証により、本番環境での安定稼働が期待できる
-  - 非同期I/O処理に優れ、APIサーバーとして高いパフォーマンスを発揮
-  - npmエコシステムが充実しており、必要なライブラリの入手が容易
+- Python 3.12.8
+  - 安定版として広くサポートされており、本番環境での安定稼働が期待できる
+  - 型ヒント（組み込みジェネリクス、`X | None` 構文）の充実により、静的解析でバグを早期検出でき、保守性が向上
+  - PyPIエコシステムが充実しており、必要なライブラリの入手が容易
 
-- TypeScript 5.x
-  - 静的型付けによりコンパイル時にバグを検出でき、保守性が向上
-  - IDEの補完機能が強力で、開発効率が高い
-  - チーム開発における型定義の共有により、コードの可読性と品質が担保される
+- uv
+  - Rust製で依存関係の解決・インストールが高速であり、開発効率が高い
+  - uv.lockによる依存関係の厳密なロックで、環境の再現性が担保される
+  - Pythonバージョン管理・仮想環境・パッケージ管理を単一ツールで完結できる
 
-- npm 11.x
-  - Node.js v24.11.0に標準搭載されており、別途インストール不要
-  - workspaces機能によりモノレポ構成に対応
-  - package-lock.jsonによる依存関係の厳密な管理が可能
+- mypy / Ruff
+  - mypyによる静的型チェックで実行前にバグを検出でき、保守性が向上
+  - Ruffによるリント・フォーマットの統一で、チーム開発におけるコードの可読性と品質が担保される
 ```
 
 ### 2. レイヤー分離の原則
 
-各レイヤーの責務を明確にし、依存関係を一方向に保ちます:
+DDDの4層構造（詳細は `.claude/guides/ddd.md` を参照）に従い、依存関係を一方向に保ちます:
 
 ```
-UI → Service → Data (OK)
-UI ← Service (NG)
-UI → Data (NG)
+presentation → application → domain ← infrastructure (OK)
+presentation → domain                                (NG: application層を飛ばさない)
+domain → infrastructure                              (NG: ドメイン層は他層に依存しない)
 ```
 
 ### 3. 測定可能な要件
@@ -46,46 +45,67 @@ UI → Data (NG)
 
 ### 各レイヤーの責務
 
-**UIレイヤー**:
-```typescript
-// 責務: ユーザー入力の受付とバリデーション
-class CLI {
-  // OK: サービスレイヤーを呼び出す
-  async addTask(title: string) {
-    const task = await this.taskService.create({ title });
-    console.log(`Created: ${task.id}`);
-  }
+**プレゼンテーション層（presentation）**:
+```python
+# 責務: ユーザー入力の受付と形式バリデーション
+class Cli:
+    def __init__(self, create_task_usecase: CreateTaskUseCase) -> None:
+        self._create_task_usecase = create_task_usecase
 
-  // NG: データレイヤーを直接呼び出す
-  async addTask(title: string) {
-    const task = await this.repository.save({ title }); // ❌
-  }
-}
+    # OK: アプリケーション層（ユースケース）を呼び出す
+    def add_task(self, title: str) -> None:
+        task = self._create_task_usecase.execute(title)
+        print(f"Created: {task.id}")
+
+    # NG: インフラ層（リポジトリ実装）を直接呼び出す
+    def add_task_bad(self, title: str) -> None:
+        self._repository.save(Task(title=title))  # ❌
 ```
 
-**サービスレイヤー**:
-```typescript
-// 責務: ビジネスロジックの実装
-class TaskService {
-  // ビジネスロジック: 優先度の自動推定
-  async create(data: CreateTaskData): Promise<Task> {
-    const task = {
-      ...data,
-      estimatedPriority: this.estimatePriority(data),
-    };
-    return this.repository.save(task);
-  }
-}
+**アプリケーション層（application）**:
+```python
+# 責務: ユースケースの手順調整（ビジネスルールは書かない）
+class CreateTaskUseCase:
+    def __init__(self, task_repository: TaskRepository) -> None:
+        self._task_repository = task_repository
+
+    def execute(self, title: str) -> Task:
+        task = Task.create(title=title)  # ← ビジネスルールはドメイン層
+        self._task_repository.save(task)
+        return task
 ```
 
-**データレイヤー**:
-```typescript
-// 責務: データの永続化
-class TaskRepository {
-  async save(task: Task): Promise<void> {
-    await this.storage.write(task);
-  }
-}
+**ドメイン層（domain）**:
+```python
+# 責務: ビジネスルール・不変条件の実装（他層に依存しない）
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+
+@dataclass
+class Task:
+    title: str
+    id: UUID = field(default_factory=uuid4)
+    priority: Priority = Priority.MEDIUM
+
+    @classmethod
+    def create(cls, title: str) -> "Task":
+        # ビジネスロジック: 優先度の自動推定
+        return cls(title=title, priority=Priority.estimate(title))
+
+# リポジトリのインターフェース（抽象）はdomain層に定義する
+from abc import ABC, abstractmethod
+
+class TaskRepository(ABC):
+    @abstractmethod
+    def save(self, task: Task) -> None: ...
+```
+
+**インフラ層（infrastructure）**:
+```python
+# 責務: データの永続化（domain層のインターフェースを実装）
+class JsonTaskRepository(TaskRepository):
+    def save(self, task: Task) -> None:
+        self._storage.write(task)
 ```
 
 ## パフォーマンス要件の設定
@@ -94,7 +114,7 @@ class TaskRepository {
 
 ```
 コマンド実行時間: 100ms以内(平均的なPC環境で)
-└─ 測定方法: console.timeでCLI起動から結果表示まで計測
+└─ 測定方法: time.perf_counterでCLI起動から結果表示まで計測
 └─ 測定環境: CPU Core i5相当、メモリ8GB、SSD
 
 タスク一覧表示: 1000件まで1秒以内
@@ -113,15 +133,12 @@ chmod 600 ~/.devtask/tasks.json  # 所有者のみ読み書き
 ```
 
 2. **入力検証**
-```typescript
-function validateTitle(title: string): void {
-  if (!title || title.length === 0) {
-    throw new ValidationError('タイトルは必須です');
-  }
-  if (title.length > 200) {
-    throw new ValidationError('タイトルは200文字以内です');
-  }
-}
+```python
+def validate_title(title: str) -> None:
+    if not title:
+        raise ValidationError("タイトルは必須です")
+    if len(title) > 200:
+        raise ValidationError("タイトルは200文字以内です")
 ```
 
 3. **機密情報の管理**
@@ -141,46 +158,59 @@ export DEVTASK_API_KEY="xxxxx"  # コード内にハードコードしない
 - 古いデータのアーカイブ
 - インデックスの最適化
 
-```typescript
-// アーカイブ機能の例: 古いタスクを別ファイルに移動
-class ArchiveService {
-  async archiveCompletedTasks(olderThan: Date): Promise<void> {
-    const oldTasks = await this.repository.findCompleted(olderThan);
-    await this.archiveStorage.save(oldTasks);
-    await this.repository.deleteMany(oldTasks.map(t => t.id));
-  }
-}
+```python
+# アーカイブ機能の例: 古いタスクを別ファイルに移動
+from datetime import datetime
+
+class ArchiveTasksUseCase:
+    def __init__(
+        self,
+        task_repository: TaskRepository,
+        archive_storage: ArchiveStorage,
+    ) -> None:
+        self._task_repository = task_repository
+        self._archive_storage = archive_storage
+
+    def execute(self, older_than: datetime) -> None:
+        old_tasks: list[Task] = self._task_repository.find_completed(older_than)
+        self._archive_storage.save(old_tasks)
+        self._task_repository.delete_many([task.id for task in old_tasks])
 ```
 
 ## 依存関係管理
 
 ### バージョン管理方針
 
-```json
-{
-  "dependencies": {
-    "commander": "^11.0.0",  // マイナーバージョンアップは自動
-    "chalk": "5.3.0"         // 破壊的変更のリスクがある場合は固定
-  },
-  "devDependencies": {
-    "typescript": "~5.3.0",  // パッチバージョンのみ自動
-    "eslint": "^9.0.0"
-  }
-}
+```toml
+# pyproject.toml
+[project]
+dependencies = [
+    "typer>=0.12,<1.0",  # マイナーバージョンアップは許可、メジャーは固定
+    "rich==13.7.0",      # 破壊的変更のリスクがある場合は完全固定
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0,<9.0",
+    "ruff>=0.6,<0.7",    # 0.x系はマイナーで破壊的変更があり得るため範囲を狭める
+    "mypy>=1.10,<2.0",
+]
 ```
 
 **方針**:
-- 安定版は固定(^でマイナーバージョンまで許可)
-- 破壊的変更のリスクがある場合は完全固定
-- devDependenciesはパッチバージョンのみ自動(~)
+- 依存関係の追加は `uv add`（開発用は `uv add --dev`）で行い、pyproject.tomlを手書きしない
+- 安定版は `>=x,<次のメジャー` でメジャーバージョンを固定（破壊的変更を防ぐ）
+- 破壊的変更のリスクがある場合は `==` で完全固定
+- 0.x系のパッケージはマイナーバージョンまで固定範囲を狭める
+- 実際にインストールされるバージョンは `uv.lock` で厳密に管理し、コミットに含める（`uv sync` で環境を再現）
 
 ## チェックリスト
 
 - [ ] すべての技術選定に理由が記載されている
-- [ ] レイヤードアーキテクチャが明確に定義されている
+- [ ] レイヤードアーキテクチャ（DDD 4層構造）が明確に定義されている
 - [ ] パフォーマンス要件が測定可能である
 - [ ] セキュリティ考慮事項が記載されている
 - [ ] スケーラビリティが考慮されている
 - [ ] バックアップ戦略が定義されている
 - [ ] 依存関係管理のポリシーが明確である
-- [ ] テスト戦略が定義されている
+- [ ] テスト戦略（pytest、カバレッジ80%以上）が定義されている

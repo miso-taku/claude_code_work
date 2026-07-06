@@ -24,7 +24,7 @@
 - 「タスクを追加する」: 新しいタスクをシステムに登録する
 - 「タスクを完了する」: タスクのステータスを完了に変更する
 
-**データモデル**: `src/types/Task.ts`
+**データモデル**: `src/devtask/domain/models/task.py`
 ```
 
 ### 2. 具体例を含める
@@ -47,11 +47,11 @@
 - low: 期限が1週間以上先、または期限なし
 
 **使用例**:
-```typescript
-const task: Task = {
-  title: 'セキュリティ脆弱性の修正',
-  priority: 'high', // 緊急対応が必要
-};
+```python
+task = Task(
+    title="セキュリティ脆弱性の修正",
+    priority=Priority.HIGH,  # 緊急対応が必要
+)
 ```
 ```
 
@@ -155,31 +155,31 @@ const task: Task = {
 
 **例**:
 ```markdown
-## TypeScript
+## uv
 
-**定義**: JavaScriptに静的型付けを追加したプログラミング言語
+**定義**: Rust製の高速なPythonパッケージマネージャー・プロジェクト管理ツール
 
-**公式サイト**: https://www.typescriptlang.org/
+**公式サイト**: https://docs.astral.sh/uv/
 
 **本プロジェクトでの用途**:
-全てのソースコードをTypeScriptで記述し、型安全性を確保しています。
+依存関係の管理、仮想環境の構築、ツールの実行(`uv run pytest` 等)に使用しています。
 
-**バージョン**: 5.3.x
+**バージョン**: 0.5.x
 
 **選定理由**:
-- 大規模開発での保守性向上
-- エディタの補完機能による開発効率向上
-- コンパイル時のエラー検出
+- pip/venvと比べて圧倒的に高速な依存関係解決
+- `uv.lock` による再現可能な環境構築
+- `pyproject.toml` への設定一元化
 
 **代替技術**:
-- JavaScript ESM: 型チェックの恩恵が受けられない
-- Flow: エコシステムの成熟度でTypeScriptに劣る
+- pip + venv: 標準的だが、ロックファイルによる再現性の担保が弱い
+- Poetry: 実績はあるが、解決速度とツールチェーン統合でuvに劣る
 
 **関連ドキュメント**:
 - [アーキテクチャ設計書](./architecture.md#技術スタック)
-- [開発ガイドライン](./development-guidelines.md#TypeScript規約)
+- [開発ガイドライン](./development-guidelines.md#Python規約)
 
-**設定ファイル**: `tsconfig.json`
+**設定ファイル**: `pyproject.toml`
 ```
 
 ### 略語・頭字語の定義
@@ -201,7 +201,7 @@ const task: Task = {
 Devtaskツールのメインインターフェースとして使用。ユーザーは
 `devtask add "タスク"` のようなコマンドでタスクを操作します。
 
-**実装**: `src/cli/` ディレクトリ
+**実装**: `src/devtask/presentation/` ディレクトリ
 
 **代替インターフェース**: GUI版の実装は将来の拡張として検討中
 
@@ -328,22 +328,24 @@ stateDiagram-v2
 ```
 
 **実装**:
-```typescript
-// src/types/Task.ts
-export type TaskStatus = 'todo' | 'in_progress' | 'completed';
+```python
+# src/devtask/domain/models/task_status.py
+from enum import Enum
 
-// 状態遷移の検証
-function canTransition(
-  from: TaskStatus,
-  to: TaskStatus
-): boolean {
-  const validTransitions: Record<TaskStatus, TaskStatus[]> = {
-    todo: ['in_progress'],
-    in_progress: ['completed', 'todo'],
-    completed: ['todo'],
-  };
-  return validTransitions[from].includes(to);
-}
+
+class TaskStatus(Enum):
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+    def can_transition_to(self, to: "TaskStatus") -> bool:
+        """状態遷移の検証(ビジネスルールはドメイン層に置く)"""
+        valid_transitions: dict[TaskStatus, set[TaskStatus]] = {
+            TaskStatus.TODO: {TaskStatus.IN_PROGRESS},
+            TaskStatus.IN_PROGRESS: {TaskStatus.COMPLETED, TaskStatus.TODO},
+            TaskStatus.COMPLETED: {TaskStatus.TODO},
+        }
+        return to in valid_transitions[self]
 ```
 
 **ビジネスルール**:
@@ -362,7 +364,7 @@ function canTransition(
 
 **クラス名**: `[ErrorClassName]`
 
-**継承元**: `Error` または `[ParentError]`
+**継承元**: `Exception` または `[親例外クラス]`
 
 **発生条件**: [どういう時に発生するか]
 
@@ -387,7 +389,7 @@ function canTransition(
 
 **クラス名**: `ValidationError`
 
-**継承元**: `Error`
+**継承元**: `Exception`
 
 **発生条件**:
 ユーザー入力がビジネスルールに違反した場合に発生します。
@@ -405,28 +407,20 @@ function canTransition(
 
 **ログレベル**: WARN (ユーザー起因のエラーのため)
 
-**実装箇所**: `src/errors/ValidationError.ts`
+**実装箇所**: `src/devtask/domain/exceptions.py`
 
 **使用例**:
-```typescript
-// エラーのスロー
-if (title.length === 0) {
-  throw new ValidationError(
-    'タイトルは必須です',
-    'title',
-    title
-  );
-}
+```python
+# エラーの送出
+if not title:
+    raise ValidationError("タイトルは必須です", field="title", value=title)
 
-// エラーのハンドリング
-try {
-  await taskService.create(data);
-} catch (error) {
-  if (error instanceof ValidationError) {
-    console.error(`入力エラー: ${error.message}`);
-    console.error(`フィールド: ${error.field}`);
-  }
-}
+# エラーのハンドリング
+try:
+    task_service.create(data)
+except ValidationError as e:
+    print(f"入力エラー: {e}")
+    print(f"フィールド: {e.field}")
 ```
 
 **関連するバリデーション**:
@@ -492,7 +486,8 @@ try {
 
 ### A-Z
 - [CLI](#CLI) - 略語
-- [TypeScript](#TypeScript) - 技術用語
+- [Python](#Python) - 技術用語
+- [uv](#uv) - 技術用語
 ```
 
 ## チェックリスト

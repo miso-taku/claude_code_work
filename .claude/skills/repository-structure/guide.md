@@ -8,7 +8,7 @@
 
 **悪い例**:
 ```
-src/
+src/{パッケージ名}/
 ├── stuff/           # 曖昧
 ├── misc/            # 雑多
 └── utils/           # 汎用的すぎる
@@ -16,122 +16,139 @@ src/
 
 **良い例**:
 ```
-src/
-├── commands/        # CLIコマンド実装
-├── services/        # ビジネスロジック
-├── repositories/    # データ永続化
-└── validators/      # 入力検証
+src/{パッケージ名}/
+├── domain/          # ビジネスルール(エンティティ・値オブジェクト)
+├── application/     # ユースケースの調整
+├── infrastructure/  # データ永続化・外部連携
+└── presentation/    # CLI / API エンドポイント
 ```
 
 ### 2. レイヤー分離の徹底
 
-アーキテクチャのレイヤー構造をディレクトリ構造に反映させます:
+アーキテクチャのレイヤー構造(DDDの4層構造)をディレクトリ構造に反映させます:
 
 ```
-src/
-├── ui/              # UIレイヤー
-│   └── cli/         # CLI実装
-├── services/        # サービスレイヤー
-│   └── task/        # タスク管理サービス
-└── repositories/    # データレイヤー
-    └── task/        # タスクリポジトリ
+src/{パッケージ名}/
+├── presentation/        # プレゼンテーション層
+│   └── cli.py           # CLI実装
+├── application/         # アプリケーション層
+│   └── usecases/        # ユースケース
+├── domain/              # ドメイン層(中心)
+│   ├── models/          # エンティティ・値オブジェクト・集約
+│   ├── services/        # ドメインサービス
+│   ├── exceptions.py    # ドメイン例外
+│   └── repositories/    # リポジトリインターフェース(抽象)
+└── infrastructure/      # インフラ層
+    └── repositories/    # リポジトリ実装
 ```
 
-### 3. 技術要素ベースの分割(基本)
+### 3. srcレイアウトの採用(基本)
 
-関連する技術要素ごとにディレクトリを分割します:
+Python + uv プロジェクトでは `src/{パッケージ名}/` 形式のsrcレイアウトを採用します:
 
 **基本構造**:
 ```
-src/
-├── commands/        # CLIコマンド
-├── services/        # ビジネスロジック
-├── repositories/    # データ永続化
-└── types/           # 型定義
+project-root/
+├── pyproject.toml       # プロジェクト定義・ツール設定
+├── uv.lock              # 依存関係ロックファイル
+├── src/
+│   └── {パッケージ名}/   # アプリケーションパッケージ
+└── tests/               # テストコード(unit / integration)
 ```
 
 **レイヤー構造との対応**:
 ```
-CLI/UIレイヤー      → commands/, cli/
-サービスレイヤー    → services/
-データレイヤー      → repositories/, storage/
+プレゼンテーション層 → presentation/
+アプリケーション層   → application/usecases/
+ドメイン層           → domain/models/, domain/services/, domain/repositories/
+インフラ層           → infrastructure/repositories/
 ```
 
 ## ディレクトリ構造の設計
 
 ### レイヤー構造の表現
 
-```typescript
-// 悪い例: 平坦な構造
-src/
-├── TaskCLI.ts
-├── TaskService.ts
-├── TaskRepository.ts
-├── UserCLI.ts
-├── UserService.ts
-└── UserRepository.ts
+```
+# 悪い例: 平坦な構造
+src/{パッケージ名}/
+├── task_cli.py
+├── task_service.py
+├── task_repository.py
+├── user_cli.py
+├── user_service.py
+└── user_repository.py
 
-// 良い例: レイヤーを明確に
-src/
-├── cli/
-│   ├── TaskCLI.ts
-│   └── UserCLI.ts
-├── services/
-│   ├── TaskService.ts
-│   └── UserService.ts
-└── repositories/
-    ├── TaskRepository.ts
-    └── UserRepository.ts
+# 良い例: レイヤーを明確に
+src/{パッケージ名}/
+├── presentation/
+│   ├── task_cli.py
+│   └── user_cli.py
+├── domain/
+│   ├── models/
+│   │   ├── task.py
+│   │   └── user.py
+│   └── repositories/
+│       ├── task_repository.py
+│       └── user_repository.py
+└── infrastructure/
+    └── repositories/
+        ├── json_task_repository.py
+        └── json_user_repository.py
 ```
 
 ### テストディレクトリの配置
 
 **推奨構造**:
 ```
-project/
+project-root/
 ├── src/
-│   └── services/
-│       └── TaskService.ts
+│   └── {パッケージ名}/
+│       └── domain/
+│           └── models/
+│               └── task.py
 └── tests/
     ├── unit/
-    │   └── services/
-    │       └── TaskService.test.ts
-    ├── integration/
-    └── e2e/
+    │   └── domain/
+    │       └── models/
+    │           └── test_task.py
+    └── integration/
+        └── test_{シナリオ}.py
 ```
 
 **理由**:
 - テストコードが本番コードと分離
-- ビルド時にテストを除外しやすい
-- テストタイプごとに整理可能
+- パッケージ配布物にテストが含まれない
+- 実装と対応するパス構造で、テスト対象がすぐわかる
+- テストタイプ(unit / integration)ごとに整理可能
 
 ## 命名規則のベストプラクティス
 
 ### ディレクトリ名の原則
 
-**1. 複数形を使う (レイヤーディレクトリ)**
+**1. 複数形を使う (レイヤー内の格納ディレクトリ)**
 ```
+✅ models/
 ✅ services/
 ✅ repositories/
-✅ controllers/
+✅ usecases/
 
+❌ model/
 ❌ service/
 ❌ repository/
-❌ controller/
 ```
 
 理由: 複数のファイルを格納するため
 
-**2. kebab-caseを使う**
+**2. snake_caseを使う**
 ```
-✅ task-management/
-✅ user-authentication/
+✅ task_management/
+✅ user_authentication/
 
 ❌ TaskManagement/
-❌ userAuthentication/
+❌ task-management/
 ```
 
-理由: URL、ファイルシステムとの互換性
+理由: Pythonパッケージとしてimport可能にするため(ハイフンは使用不可)
 
 **3. 具体的な名前を使う**
 ```
@@ -146,131 +163,119 @@ project/
 
 ### ファイル名の原則
 
-**1. クラスファイル: PascalCase + 役割接尾辞**
-```typescript
-// サービスクラス
-TaskService.ts
-UserAuthenticationService.ts
+**1. クラスを含むモジュール: snake_case + 役割接尾辞(クラス名はPascalCase)**
+```python
+# ユースケースクラス
+confirm_order.py          # class ConfirmOrderUseCase
+create_task.py            # class CreateTaskUseCase
 
-// リポジトリクラス
-TaskRepository.ts
-UserRepository.ts
-
-// コントローラークラス
-TaskController.ts
+# リポジトリクラス
+task_repository.py        # class TaskRepository(ABC)
+json_task_repository.py   # class JsonTaskRepository
 ```
 
-**2. 関数ファイル: camelCase + 動詞で始める**
-```typescript
-// ユーティリティ関数
-formatDate.ts
-validateEmail.ts
-parseCommandArguments.ts
+**2. 関数モジュール: snake_case + 動詞で始める**
+```python
+# ユーティリティ関数
+format_date.py
+validate_email.py
+parse_command_arguments.py
 ```
 
-**3. 型定義ファイル: PascalCase または kebab-case**
-```typescript
-// インターフェース定義
-Task.ts
-UserProfile.ts
-
-// 型定義集
-task-types.d.ts
-api-types.d.ts
+**3. ドメインモデル: snake_case(クラス名はPascalCase)**
+```python
+# エンティティ・値オブジェクト
+task.py                   # class Task
+money.py                  # class Money
+user_profile.py           # class UserProfile
 ```
 
-**4. 定数ファイル: UPPER_SNAKE_CASE または kebab-case**
-```typescript
-// 定数定義
-API_ENDPOINTS.ts
-ERROR_MESSAGES.ts
-
-// または
-api-endpoints.ts
-error-messages.ts
+**4. 定数モジュール: snake_case(定数名はUPPER_SNAKE_CASE)**
+```python
+# constants.py 内で定義
+API_ENDPOINTS = {...}
+ERROR_MESSAGES = {...}
 ```
 
 ## 依存関係の管理
 
 ### レイヤー間の依存ルール
 
-```typescript
-// ✅ 良い例: 上位レイヤーから下位レイヤーへの依存
-// cli/TaskCLI.ts
-import { TaskService } from '../services/TaskService';
+依存方向は `presentation → application → domain ← infrastructure` を厳守します。
 
-class TaskCLI {
-  constructor(private taskService: TaskService) {}
-}
+```python
+# ✅ 良い例: 上位レイヤーから下位レイヤーへの依存
+# presentation/task_cli.py
+from {パッケージ名}.application.usecases.create_task import CreateTaskUseCase
 
-// ❌ 悪い例: 下位レイヤーから上位レイヤーへの依存
-// services/TaskService.ts
-import { TaskCLI } from '../cli/TaskCLI';  // 禁止！
+class TaskCLI:
+    def __init__(self, create_task_usecase: CreateTaskUseCase) -> None:
+        self._create_task_usecase = create_task_usecase
+
+# ❌ 悪い例: ドメイン層から他レイヤーへの依存
+# domain/models/task.py
+from {パッケージ名}.infrastructure.repositories.json_task_repository import (
+    JsonTaskRepository,  # 禁止！ドメイン層は標準ライブラリのみに依存する
+)
 ```
 
 ### 循環依存の回避
 
 **問題のあるコード**:
-```typescript
-// services/TaskService.ts
-import { UserService } from './UserService';
+```python
+# domain/services/task_service.py
+from {パッケージ名}.domain.services.user_service import UserService
 
-export class TaskService {
-  constructor(private userService: UserService) {}
-}
+class TaskService:
+    def __init__(self, user_service: UserService) -> None:
+        self._user_service = user_service
 
-// services/UserService.ts
-import { TaskService } from './TaskService';  // 循環依存！
+# domain/services/user_service.py
+from {パッケージ名}.domain.services.task_service import TaskService  # 循環依存！
 
-export class UserService {
-  constructor(private taskService: TaskService) {}
-}
+class UserService:
+    def __init__(self, task_service: TaskService) -> None:
+        self._task_service = task_service
 ```
 
-**解決策1: 共通の型定義を抽出**
-```typescript
-// types/Service.ts
-export interface ITaskService { /* ... */ }
-export interface IUserService { /* ... */ }
+**解決策1: 抽象(インターフェース)を抽出**
+```python
+# domain/repositories/task_repository.py
+from abc import ABC, abstractmethod
 
-// services/TaskService.ts
-import type { IUserService } from '../types/Service';
+class TaskRepository(ABC):
+    @abstractmethod
+    def find_by_user_id(self, user_id: UUID) -> list[Task]: ...
 
-export class TaskService {
-  constructor(private userService: IUserService) {}
-}
+# domain/services/user_service.py
+from {パッケージ名}.domain.repositories.task_repository import TaskRepository
 
-// services/UserService.ts
-import type { ITaskService } from '../types/Service';
-
-export class UserService {
-  constructor(private taskService: ITaskService) {}
-}
+class UserService:
+    def __init__(self, task_repository: TaskRepository) -> None:
+        self._task_repository = task_repository  # 抽象に依存(依存性逆転)
 ```
 
 **解決策2: 依存関係を見直す**
-```typescript
-// 共通の機能を別サービスに抽出
-// services/NotificationService.ts
-export class NotificationService {
-  notifyTaskAssignment(taskId: string, userId: string): void {
-    // 通知処理
-  }
-}
+```python
+# 共通の機能を別サービスに抽出
+# domain/services/notification_service.py
+class NotificationService:
+    def notify_task_assignment(self, task_id: UUID, user_id: UUID) -> None:
+        """通知処理"""
 
-// services/TaskService.ts
-import { NotificationService } from './NotificationService';
+# domain/services/task_service.py
+from {パッケージ名}.domain.services.notification_service import NotificationService
 
-export class TaskService {
-  constructor(private notificationService: NotificationService) {}
-}
+class TaskService:
+    def __init__(self, notification_service: NotificationService) -> None:
+        self._notification_service = notification_service
 
-// services/UserService.ts
-import { NotificationService } from './NotificationService';
+# domain/services/user_service.py
+from {パッケージ名}.domain.services.notification_service import NotificationService
 
-export class UserService {
-  constructor(private notificationService: NotificationService) {}
-}
+class UserService:
+    def __init__(self, notification_service: NotificationService) -> None:
+        self._notification_service = notification_service
 ```
 
 ## スケーリング戦略
@@ -279,21 +284,27 @@ export class UserService {
 
 **標準パターン**:
 ```
-src/
-├── commands/
-│   └── TaskCommand.ts
-├── services/
-│   ├── TaskService.ts
-│   └── UserService.ts
-├── repositories/
-│   ├── TaskRepository.ts
-│   └── UserRepository.ts
-├── types/
-│   ├── Task.ts
-│   └── User.ts
-├── validators/
-│   └── TaskValidator.ts
-└── index.ts
+src/{パッケージ名}/
+├── __init__.py
+├── domain/
+│   ├── models/
+│   │   ├── task.py
+│   │   └── user.py
+│   ├── services/
+│   ├── exceptions.py
+│   └── repositories/
+│       ├── task_repository.py
+│       └── user_repository.py
+├── application/
+│   └── usecases/
+│       ├── create_task.py
+│       └── register_user.py
+├── infrastructure/
+│   └── repositories/
+│       ├── json_task_repository.py
+│       └── json_user_repository.py
+└── presentation/
+    └── cli.py
 ```
 
 **理由**:
@@ -310,24 +321,24 @@ src/
 4. 他の機能への依存が少ない
 
 **分離の手順**:
-```typescript
-// Before: 全てservices/に配置
-services/
-├── TaskService.ts
-├── TaskValidationService.ts
-├── TaskNotificationService.ts
-├── UserService.ts
-└── UserAuthService.ts
+```
+# Before: 全てmodels/直下に配置
+domain/models/
+├── task.py
+├── subtask.py
+├── task_category.py
+├── user.py
+└── user_credential.py
 
-// After: 機能ごとにモジュール化
-modules/
+# After: 集約(機能)ごとにサブパッケージ化
+domain/models/
 ├── task/
-│   ├── TaskService.ts
-│   ├── TaskValidationService.ts
-│   └── TaskNotificationService.ts
+│   ├── task.py
+│   ├── subtask.py
+│   └── task_category.py
 └── user/
-    ├── UserService.ts
-    └── UserAuthService.ts
+    ├── user.py
+    └── user_credential.py
 ```
 
 ## 特殊なケースの対応
@@ -336,34 +347,46 @@ modules/
 
 **shared/ または common/ ディレクトリ**
 ```
-src/
+src/{パッケージ名}/
 ├── shared/
 │   ├── utils/           # 汎用ユーティリティ
-│   ├── types/           # 共通型定義
-│   └── constants/       # 共通定数
-├── commands/
-├── services/
-└── repositories/
+│   ├── types/           # 共通型定義(TypeAlias, Protocol)
+│   └── constants.py     # 共通定数
+├── domain/
+├── application/
+├── infrastructure/
+└── presentation/
 ```
 
 **ルール**:
 - 本当に複数のレイヤーで使われるもののみ
 - 単一レイヤーでしか使わないものは含めない
+- ドメイン層から参照する場合、shared/は標準ライブラリのみに依存させる
 
 ### 設定ファイルの管理(該当する場合)
 
+プロジェクト定義とツール設定は `pyproject.toml` に集約します:
+
+```toml
+[project]            # パッケージ名・バージョン・依存関係
+[tool.ruff]          # リント・フォーマット設定
+[tool.pytest.ini_options]  # テスト設定
+[tool.mypy]          # 型チェック設定
+```
+
+アプリケーション固有の設定が必要な場合:
 ```
 config/
-├── default.ts           # デフォルト設定
-└── constants.ts         # 定数定義
+├── default.toml         # デフォルト設定
+└── logging.toml         # ログ設定
 ```
 
 ### スクリプトの管理(該当する場合)
 
 ```
 scripts/
-├── build.sh             # ビルドスクリプト
-└── dev-tools.ts         # 開発補助スクリプト
+├── setup_dev.sh         # 開発環境セットアップスクリプト
+└── generate_data.py     # 開発補助スクリプト(uv run scripts/generate_data.py で実行)
 ```
 
 ## ドキュメント配置
@@ -384,17 +407,18 @@ scripts/
 - `glossary.md`: 用語集
 
 **ソースコード内**:
-- TSDoc/JSDocコメント: 関数・クラスの説明
+- docstring(Googleスタイル等): 関数・クラスの説明
 
 ## チェックリスト
 
 - [ ] 各ディレクトリの役割が明確に定義されている
-- [ ] レイヤー構造がディレクトリに反映されている
-- [ ] 命名規則が一貫している
-- [ ] テストコードの配置方針が決まっている
-- [ ] 依存関係のルールが明確である
+- [ ] レイヤー構造(domain / application / infrastructure / presentation)がディレクトリに反映されている
+- [ ] srcレイアウト(`src/{パッケージ名}/`)を採用している
+- [ ] 命名規則(snake_case)が一貫している
+- [ ] テストコードの配置方針(tests/unit/, tests/integration/ が実装と対応するパス構造)が決まっている
+- [ ] 依存関係のルール(presentation → application → domain ← infrastructure)が明確である
 - [ ] 循環依存がない
 - [ ] スケーリング戦略が考慮されている
 - [ ] 共有コードの配置ルールが定義されている
-- [ ] 設定ファイルの管理方法が決まっている
+- [ ] 設定(pyproject.toml)の管理方法が決まっている
 - [ ] ドキュメントの配置場所が明確である
