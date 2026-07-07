@@ -8,6 +8,22 @@ Claude Code 向けの「スペック駆動開発（Spec-Driven Development）」
 - Python v3.12.8
 - パッケージマネージャー: [uv](https://docs.astral.sh/uv/)
 
+## プロジェクト状況ダッシュボード
+
+リポジトリの現在の状況（ロードマップの現在地・永続ドキュメントの整備状況・ステアリング作業の進捗・コミット履歴）を、レトロポップなデザインの単一HTMLとして生成できます。クローン直後の環境でも Python 3.12 + uv + git があれば動作します（実行時の外部依存なし）。
+
+```bash
+uv sync          # 初回のみ（依存関係と dashboard コマンドをセットアップ）
+uv run dashboard # リポジトリルートに dashboard.html を生成
+```
+
+生成された `dashboard.html` をブラウザで開いてください。オプション:
+
+- `--output <パス>`: 出力先HTMLパスを変更（既定: `<root>/dashboard.html`）
+- `--root <パス>`: 対象リポジトリのルートを変更（既定: カレントディレクトリ）
+
+実装は `tools/dashboard/`（DDD 4層構造・TDD開発の独立パッケージ）にあります。`src/` と `tests/` はアプリケーション本体専用で、開発支援ツールは含みません。
+
 ## 開発の基本原則
 
 このプロジェクトでは以下の2原則を例外なく適用します。詳細は [CLAUDE.md](CLAUDE.md) を参照してください。
@@ -25,9 +41,16 @@ Claude Code 向けの「スペック駆動開発（Spec-Driven Development）」
 ```
 .
 ├── CLAUDE.md                  # プロジェクトメモリ（開発原則・プロセスの定義）
+├── pyproject.toml             # プロジェクト定義（uv workspace・pytest・ruff）
 ├── docs/                      # 永続的ドキュメント（アプリ全体の「何を作るか」）
 │   └── ideas/                 # 壁打ち・ブレストの下書き（/setup-project の入力）
-├── src/                       # アプリケーションのソースコード
+├── src/                       # アプリケーション本体のソースコード（開発対象のみ）
+├── tests/                     # アプリケーション本体のテストコード
+├── tools/
+│   └── dashboard/             # プロジェクト状況ダッシュボード生成ツール（独立パッケージ）
+│       ├── pyproject.toml     # project-dashboard パッケージ定義（dashboardコマンド）
+│       ├── src/project_dashboard/  # DDD 4層構造の実装
+│       └── tests/             # ダッシュボードのテスト（unit / integration）
 ├── .steering/                 # 作業単位のドキュメント（「今回何をするか」の計画・進捗）
 └── .claude/
     ├── commands/              # スラッシュコマンド（/setup-project, /add-feature, /review-docs）
