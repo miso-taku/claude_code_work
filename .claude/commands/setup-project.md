@@ -1,10 +1,10 @@
 ---
-description: 初回セットアップ: 6つの永続ドキュメントを対話的に作成する
+description: 初回セットアップ: 7つの永続ドキュメントを対話的に作成する
 ---
 
 # 初回プロジェクトセットアップ
 
-このコマンドは、プロジェクトの6つの永続ドキュメントを対話的に作成します。
+このコマンドは、プロジェクトの7つの永続ドキュメントを対話的に作成します。
 
 ## 実行方法
 
@@ -79,9 +79,18 @@ ls docs/ideas/
 2. 既存のドキュメントを読む
 3. スキルのテンプレートに従って`docs/glossary.md`を作成
 
+### ステップ7: 実装ロードマップの作成
+
+1. **implementation-roadmapスキル**をロード
+2. `docs/product-requirements.md`、`docs/functional-design.md`、`docs/architecture.md`を読む
+3. スキルのテンプレートに従って`docs/implementation-roadmap.md`を作成
+   - 機能一覧を**`/add-feature` の実行単位**に分割する（1行 = 将来の1ステアリング）
+   - フェーズ分け（MVP → 拡張）と機能間の依存関係を明記する
+   - **詳細な実装タスクは書かない**（詳細タスクは `/add-feature` 実行時に `.steering/` に生成される）
+
 ## 完了条件
 
-- 6つの永続ドキュメントが全て作成されていること
+- 7つの永続ドキュメントが全て作成されていること
 
 完了時のメッセージ:
 ```
@@ -94,6 +103,7 @@ ls docs/ideas/
 ✅ docs/repository-structure.md
 ✅ docs/development-guidelines.md
 ✅ docs/glossary.md
+✅ docs/implementation-roadmap.md
 
 これで開発を開始する準備が整いました。
 
@@ -101,8 +111,10 @@ ls docs/ideas/
 - ドキュメントの編集: 普通に会話で依頼してください
   例: 「PRDに新機能を追加して」「architecture.mdを見直して」
 
-- 機能の追加: /add-feature [機能名] を実行してください
+- 機能の追加: docs/implementation-roadmap.md の順序に従って
+  /add-feature [機能名] を実行してください
   例: /add-feature ユーザー認証
+  (完了するとロードマップの該当機能が自動でチェックされます)
 
 - ドキュメントレビュー: /review-docs [パス] を実行してください
   例: /review-docs docs/product-requirements.md

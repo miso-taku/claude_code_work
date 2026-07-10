@@ -93,6 +93,7 @@
 - **repository-structure.md** - リポジトリ構造定義書
 - **development-guidelines.md** - 開発ガイドライン
 - **glossary.md** - ユビキタス言語定義
+- **implementation-roadmap.md** - 実装ロードマップ（機能レベルの実装順序・フェーズ・依存関係。詳細タスクは書かず `.steering/` の tasklist.md に委ねる。`/add-feature` 完了時に進捗を更新する）
 
 ### 作業単位のドキュメント(`.steering/`)
 
@@ -107,8 +108,8 @@
 ### 初回セットアップ
 
 1. このテンプレートを使用
-2. `/setup-project` で永続的ドキュメント作成(対話的に6つ作成)
-3. `/add-feature [機能]` で機能実装
+2. `/setup-project` で永続的ドキュメント作成(対話的に7つ作成)
+3. `docs/implementation-roadmap.md` の順序に従い `/add-feature [機能]` で機能実装
 
 ### 日常的な使い方
 
