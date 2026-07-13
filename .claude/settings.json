@@ -6,7 +6,10 @@
       "Skill(architecture-design)",
       "Skill(repository-structure)",
       "Skill(development-guidelines)",
-      "Skill(glossary-creation)"
+      "Skill(glossary-creation)",
+      "Skill(implementation-roadmap)",
+      "Skill(steering)",
+      "Skill(check-docs-sync)"
     ],
     "deny": [],
     "ask": []

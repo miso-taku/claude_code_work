@@ -91,6 +91,8 @@ model: sonnet
 - リポジトリ構造定義書
 - 開発ガイドライン
 - 用語集
+- 実装ロードマップ
+- ステアリングファイル (`.steering/` 配下の requirements.md / design.md / tasklist.md)
 
 ### ステップ2: 構造の確認
 
@@ -219,6 +221,24 @@ model: sonnet
 - [ ] 具体例が含まれているか
 - [ ] 関連用語がリンクされているか
 - [ ] 索引が整理されているか
+
+### 実装ロードマップ
+
+追加チェック項目:
+- [ ] 機能が `/add-feature` 1回で完了できる単位に分割されているか
+- [ ] フェーズ分け（MVP → 拡張）と各フェーズのゴールが明記されているか
+- [ ] 機能間の依存関係が機能IDで明記されているか
+- [ ] 詳細な実装タスクが書かれていないか（詳細は `.steering/` に委ねる）
+
+### ステアリングファイル
+
+追加チェック項目:
+- [ ] requirements.md: 要求内容が明確で、`docs/product-requirements.md` と矛盾がないか
+- [ ] design.md: ドメインモデルセクション（エンティティ・値オブジェクト・集約・リポジトリ）があるか
+- [ ] design.md: レイヤー配置が明記され、`.claude/guides/ddd.md` の設計ルールに準拠しているか
+- [ ] design.md: `docs/architecture.md`・`docs/functional-design.md` と矛盾がないか
+- [ ] tasklist.md: 全実装タスクにTDDサイクル（RED/GREEN/REFACTOR）のサブタスクが含まれているか
+- [ ] tasklist.md: タスクが実装可能な粒度で、design.mdと整合しているか
 
 ## 出力フォーマット
 

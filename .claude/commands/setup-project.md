@@ -52,7 +52,7 @@ ls docs/ideas/
 ### ステップ2: 機能設計書の作成
 
 1. **functional-designスキル**をロード
-1. `docs/product-requirements.md`を読む
+2. `docs/product-requirements.md`を読む
 3. スキルのテンプレートとガイドに従って`docs/functional-design.md`を作成
 
 ### ステップ3: アーキテクチャ設計書の作成
